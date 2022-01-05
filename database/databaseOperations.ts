@@ -1,7 +1,7 @@
-import pg, {Pool} from 'pg';
+import pg, {Pool, QueryResult} from 'pg';
 import dotenv from 'dotenv';
 import { Account, Chat, Favorite, Item } from '../models/databaseObjects.js';
-import { resolve } from 'path/posix';
+import { generateTokens } from '../security/tokens/tokens.js';
 
 dotenv.config();
 
@@ -29,16 +29,55 @@ class UserDataOperations {
         return this._userInstance || (this._userInstance = new this());
     }
 
-    async addNewUser(accountInfo: Account) {
+    async addNewUser(acct: Account) {
+        const sql = `
+            INSERT INTO accounts 
+                (
+                    username, accounttype, email, password,
+                    avatarurl, userrating, address, zipcode, refreshtoken
+                )
+            VALUES
+                ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            RETURNING *
+        `;
+        const newUser = (
+                            await this.db.connection.query(
+                                sql, 
+                                [
+                                    acct.username, acct.accounttype, acct.email, acct.password,
+                                    acct.avatarurl, acct.userrating, acct.address, acct.zipcode, acct.refreshtoken
+                                ]
+                            )
+                        );
 
+        return (newUser.rowCount ? true : false);
     }
 
     async deleteUser(username: string) {
 
     }
 
-   async logUserIn() {
-       
+    /** search the db for the user's creds. If found, this will generate access and refresh tokens for the user. The refresh token will
+     * be stored in the db for later use.
+     * @param username the user's username
+     * @param password the user's password hash
+     * @returns an access token for the client
+     */
+   async logUserIn(username: string, password: string): Promise<string|null> {
+        const sql = `SELECT * FROM accounts WHERE username=$1 AND password=$2`;
+        const acctInfoResponse: QueryResult<Account> = (await this.db.connection.query(sql, [username, password]));
+        if (acctInfoResponse.rowCount) {
+            // generate the user's tokens
+            let acctInfo: Account = acctInfoResponse.rows[0];
+            const tokens = generateTokens(acctInfo.username);
+
+            // now update the account model in the db with the new refresh token
+
+            // return the access token to the client for future use
+            return tokens.accessToken;
+        } else {
+            return null;
+        }
    }
 
    async updateUser(usrAccount: Account) {
@@ -115,6 +154,9 @@ class ChatDataOperations {
     }
 }
 
+/** database methods for user operations */
 export const userOps = UserDataOperations.GetUserOpsInstance;
+/** database methods for flower/item operations */
 export const itemOps = ItemDataOperations.GetItemDataOpsInstance;
+/** database methods for user chat operations */
 export const chatOps = ChatDataOperations.ChatDataOpsInstance;

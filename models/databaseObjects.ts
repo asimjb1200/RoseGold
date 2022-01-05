@@ -28,7 +28,7 @@ export type Category = {
 };
 
 export type Account = {
-    accountid: number;
+    accountid?: number;
     username: string;
     accounttype: boolean;
     email: string;
@@ -46,4 +46,28 @@ export type Chat = {
     recid: number;
     message: string;
     timestamp: string;
+}
+
+export type PostgresError = {
+    length: number;
+    severity?: string;
+    code?: string;
+    detail: string;
+    hint?: any;
+    position?: any;
+    internalPosition?: any;
+    internalQuery?: any;
+    where?: any;
+    schema?: string;
+    table?: string;
+    column?: string;
+    dataType?: string;
+    constraint?: string;
+    file?: string;
+    line?: string;
+    routine?: string
+}
+
+export function isPostgresError(err: any): err is PostgresError {
+    return (err as PostgresError).detail !== undefined;
 }

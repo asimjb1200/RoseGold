@@ -3,6 +3,7 @@ import path from 'path';
 import cookieParser from 'cookie-parser';
 import * as dbHelpers from './database/databaseOperations.js';
 import schedule from 'node-schedule';
+import userRouter from './routes/users.js';
 import { fileURLToPath } from 'url';
 import compression from 'compression';
 import { dirname } from 'path';
@@ -27,4 +28,5 @@ app.use(express.urlencoded({
 }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+app.use('/users', userRouter);
 export default app;
