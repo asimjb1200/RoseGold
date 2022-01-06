@@ -12,7 +12,7 @@ const __dirname = dirname(__filename);
 
 import logger from 'morgan';
 import fs from 'fs';
-let accessLogStream = fs.createWriteStream(path.join(__dirname, '/logs/access.log'), { flags: 'a' })
+let accessLogStream = fs.createWriteStream(path.join(__dirname, '/logs/access.log'), { flags: 'a' });
 
 let app = express();
 

@@ -5,13 +5,15 @@ log4js.configure({
         userLogs: {type: "file", filename: "build/logs/users/userlogs.log", maxLogSize: 10485760, backups: 1, compress: true},
         itemLogs: {type: "file", filename: "build/logs/items/itemlogs.log", maxLogSize: 10485760, backups: 1, compress: true},
         chatLogs: {type: "file", filename: "build/logs/chat/chatlogs.log", maxLogSize: 10485760, backups: 1, compress: true},
-        networkingLogs: {type: "file", filename: "build/logs/networking/nwlogs.log", maxLogSize: 10485760, backups: 1, compress: true}
+        networkingLogs: {type: "file", filename: "build/logs/networking/nwlogs.log", maxLogSize: 10485760, backups: 1, compress: true},
+        console: { type: 'console' }
     },
     categories: {
-        userLogs: {appenders: ["userLogs"], level: "debug"},
+        userLogs: {appenders: ["userLogs"], level: "trace"},
         itemLogs: {appenders: ["itemLogs"], level: "debug"},
         chatLogs: {appenders: ["chatLogs"], level: "debug"},
-        networkingLogs: {appenders: ["networkingLogs"], level: "debug"}
+        networkingLogs: {appenders: ["networkingLogs"], level: "debug"},
+        default: { appenders: ['console'], level: 'trace' }
     }
 });
 

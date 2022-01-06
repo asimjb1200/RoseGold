@@ -2,6 +2,7 @@ import pg, {Pool, QueryResult} from 'pg';
 import dotenv from 'dotenv';
 import { Account, Chat, Favorite, Item } from '../models/databaseObjects.js';
 import { generateTokens } from '../security/tokens/tokens.js';
+import { LoginOperationResponse } from '../models/dtos.js';
 
 dotenv.config();
 
@@ -63,25 +64,57 @@ class UserDataOperations {
      * @param password the user's password hash
      * @returns an access token for the client
      */
-   async logUserIn(username: string, password: string): Promise<string|null> {
+   async logUserIn(username: string, password: string): Promise<LoginOperationResponse> {
         const sql = `SELECT * FROM accounts WHERE username=$1 AND password=$2`;
         const acctInfoResponse: QueryResult<Account> = (await this.db.connection.query(sql, [username, password]));
         if (acctInfoResponse.rowCount) {
             // generate the user's tokens
             let acctInfo: Account = acctInfoResponse.rows[0];
             const tokens = generateTokens(acctInfo.username);
+            acctInfo.refreshtoken = tokens.refreshToken;
 
             // now update the account model in the db with the new refresh token
+            const userUpdated = await this.updateUser(acctInfo);
 
-            // return the access token to the client for future use
-            return tokens.accessToken;
+            if (userUpdated) {
+                // return the access token to the client for future use
+                return {accessToken: tokens.accessToken, userLoggedIn: true, updateError: false};
+            } else {
+                return {accessToken: '', userLoggedIn: false, updateError: true};
+            }
         } else {
-            return null;
+            return {accessToken: '', userLoggedIn: false, updateError: false};
         }
    }
 
-   async updateUser(usrAccount: Account) {
+   async updateUser(acct: Account) {
+        const sql = `
+            UPDATE 
+                accounts
+            SET
+                username=$1,
+                accounttype=$2,
+                email=$3,
+                password=$4,
+                avatarurl=$5,
+                userrating=$6,
+                address=$7,
+                zipcode=$8,
+                refreshtoken=$9
+            WHERE
+                username=$1
+        `;
+        
+        const userUpdated: number = (await this.db.connection.query(sql, [
+            acct.username, acct.accounttype, acct.email, acct.password,
+            acct.avatarurl, acct.userrating, acct.address, acct.zipcode, acct.refreshtoken
+        ])).rowCount;
 
+        if (userUpdated) {
+            return true
+        } else {
+            return false;
+        }
    }
 
    async addFavorite(newFav: Favorite) {
@@ -90,6 +123,12 @@ class UserDataOperations {
 
    async deleteFavorite(fav: Favorite) {
        
+   }
+
+   async findRefreshTokenByUser(username: string) {
+       const sql = "SELECT refreshtoken FROM accounts WHERE username=$1";
+       const refresher: string = (await this.db.connection.query(sql, [username])).rows[0].refreshtoken;
+       return refresher;
    }
 }
 
