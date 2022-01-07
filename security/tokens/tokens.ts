@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { userOps } from '../../database/databaseOperations';
+import { userOps } from '../../database/databaseOperations.js';
 import { userLogger } from '../../loggers/logger.js';
 import { JWTUser } from '../../models/dtos.js';
 

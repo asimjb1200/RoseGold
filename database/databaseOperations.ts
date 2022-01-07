@@ -142,20 +142,91 @@ class ItemDataOperations {
         return this._itemInstance || (this._itemInstance = new this());
     }
 
+    /** for inserting a single item into the database. returns true if successful and false otherwise.
+     * @param newItem the item to insert
+     */
     async postItem(newItem: Item) {
-
+        const sql = `
+            INSERT INTO
+                items
+                (accountid, image1, image2, image3, isavailable, pickedup, zipcode, dateposted, name, description)
+            VALUES
+                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        `;
+        const insertedRowCount = (await this.db.connection.query(
+            sql,
+            [
+                newItem.accountid, newItem.image1, newItem.image2, newItem.image3, 
+                newItem.isavailable, newItem.pickedup, newItem.zipcode, newItem.dateposted,
+                newItem.name, newItem.description
+            ])).rowCount;
+        
+        if (insertedRowCount) {
+            return true;
+        } else {
+            return false;
+        }
     }
  
+    /** for inserting multiple items into the database. returns true if successful and false otherwise.
+     * @param newItemsArray an array of the items to be inserted into the database.
+     */
     async bulkPostItems(newItemsArray: Item[]) {
- 
+        let sqlParamHolder = "";
+
+        // build out the parameter blocks that will be used to hold the values e.g. ($1, $2, $3....)
+        for (let index = 1; index < (newItemsArray.length+1); index++) {
+            if (index !== newItemsArray.length) {
+                let paramCounter = index*10;
+                sqlParamHolder += `($${paramCounter-9}, $${paramCounter-8}, $${paramCounter-7}, $${paramCounter-6}, $${paramCounter-5}, $${paramCounter-4}, $${paramCounter-3}, $${paramCounter-2}, $${paramCounter-1}, $${paramCounter}),`;
+            } else {
+                let paramCounter = index*10;
+                sqlParamHolder += `($${paramCounter-9}, $${paramCounter-8}, $${paramCounter-7}, $${paramCounter-6}, $${paramCounter-5}, $${paramCounter-4}, $${paramCounter-3}, $${paramCounter-2}, $${paramCounter-1}, $${paramCounter})`;
+            }
+        };
+
+        // postgres is expecting a flat array of values, so build one.
+        let arrayOfValues: any[] = [];
+        newItemsArray.forEach((x: Item) => {
+            arrayOfValues.push(
+                x.accountid, x.image1, x.image2, x.image3, x.isavailable,
+                x.pickedup, x.zipcode, x.dateposted, x.name, x.description
+            );
+        });
+
+        const sql = `
+            INSERT INTO
+                items
+                (accountid, image1, image2, image3, isavailable, pickedup, zipcode, dateposted, name, description)
+            VALUES
+                ${sqlParamHolder}
+        `;
+        const dataInserted: number = (await this.db.connection.query(sql, arrayOfValues)).rowCount;
+        if (dataInserted) {
+            return true;
+        } else {
+            return false;
+        }
     }
  
     async deleteItem(itemId: number) {
- 
+        const sql = "DELETE FROM items WHERE id=$1";
+        const deleteResult: number = (await this.db.connection.query(sql, [itemId])).rowCount;
+        return !!deleteResult;
     }
  
     async bulkDeleteItems(ids: number[]) {
- 
+        let deleteParams = "";
+        for (let index = 1; index <= ids.length; index++) {
+            if (index != ids.length) {
+                deleteParams += `$${index},`;
+            } else {
+                deleteParams += `$${index}`;
+            }
+        }
+        const sql = `DELETE FROM items WHERE id IN (${deleteParams})`;
+        const deletionResult: number = (await this.db.connection.query(sql, ids)).rowCount;
+        return !!deletionResult;
     }
  
     async updateItem(newItem: Item) {

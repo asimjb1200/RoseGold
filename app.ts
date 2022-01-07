@@ -4,6 +4,8 @@ import cookieParser from 'cookie-parser';
 import * as dbHelpers from './database/databaseOperations.js';
 import schedule from 'node-schedule';
 import userRouter from './routes/users.js';
+import itemRouter from './routes/items.js';
+import chatRouter from './routes/chat.js';
 import { fileURLToPath } from 'url';
 import compression from 'compression';
 import { dirname } from 'path';
@@ -29,4 +31,6 @@ app.use(express.urlencoded({
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/users', userRouter);
+app.use('/item-handler', itemRouter);
+app.use('/chat-handler', chatRouter);
 export default app;
