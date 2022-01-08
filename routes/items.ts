@@ -1,8 +1,9 @@
 import express, { Request, Response } from 'express';
-import { check, validationResult } from 'express-validator';
+import { check, query, validationResult } from 'express-validator';
 import { itemOps } from '../database/databaseOperations.js';
 import { itemLogger } from '../loggers/logger.js';
 import { isPostgresError, Item } from '../models/databaseObjects.js';
+import { ItemPagination, ResponseForClient } from '../models/dtos.js';
 let router = express.Router();
 
 router.post('/add-items', check('items').isArray().notEmpty(), async (req:Request, res: Response) => {
@@ -55,6 +56,49 @@ router.post('/delete-items', check('deleteTheseIds').isArray().notEmpty(), async
             return res.status(500).json()
         } else {
             itemLogger.error(`Tried to delete these items: ${deleteTheseIds}. Details: ${error}`);
+            return res.status(500).json();
+        }
+    }
+});
+
+router.post('/fetch-items',
+    [
+        check('limit').notEmpty().isInt(), 
+        check('offset').notEmpty().isInt(),
+        check('zipcodes').notEmpty().isArray()
+    ],
+    async (req:Request, res:Response) => {
+    const validationErrors = validationResult(req);
+    if (!validationErrors.isEmpty()) {
+        return res.status(422).json({errors: validationErrors.array()});
+    }
+
+    const limit = req.body.limit! as string;
+    const offset = req.body.offset! as string;
+    const zipcodes = req.body.zipcode! as number[];
+
+    // return res.status(200).json('success');
+
+    try {
+        const totalRecords = await itemOps.fetchTotalRecordCount(limit, offset, zipcodes[0]);
+        const records: Item[] = await itemOps.fetchItems(limit, offset, zipcodes[0]);
+        
+        if (records.length) {
+            const recordData: ItemPagination = {
+                records,
+                totalRecords
+            } 
+            const responseForClient = {data: recordData, error: []} as ResponseForClient<ItemPagination>;
+            return res.status(200).json(responseForClient);
+        } else {
+            return res.status(404).json('no records found');
+        }
+    } catch (error) {
+        if (isPostgresError(error)) {
+            itemLogger.error(`item fetch failed. Code: ${error.code}. Details: ${error.detail}`);
+            return res.status(503).json();
+        } else {
+            itemLogger.error(`item fetch failed. Details: ${error}`);
             return res.status(500).json();
         }
     }

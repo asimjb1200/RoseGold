@@ -232,6 +232,34 @@ class ItemDataOperations {
     async updateItem(newItem: Item) {
  
     }
+
+    async fetchItems(limit: string, offset: string, zipcode: number, categories?: number[]) {
+        // TODO: add in support for zipcodes later. we want to geo-restrict results
+        // TODO: add in joins because I'll need to filter off of the category items table later
+        const sql = `
+            SELECT * 
+            FROM items
+            WHERE zipcode=$1 AND isavailable=true AND pickedup=false
+            ORDER BY dateposted DESC
+            LIMIT $1
+            OFFSET $2
+        `;
+        const results: Item[] = (await this.db.connection.query(sql, [limit, offset])).rows;
+        return results;
+    }
+
+    async fetchTotalRecordCount(limit: string, offset: string, zipcode: number, categories?: number[]) {
+        const sql = `
+            SELECT COUNT(*) 
+            FROM items
+            WHERE zipcode=$1 AND isavailable=true AND pickedup=false
+            ORDER BY dateposted DESC
+            LIMIT $1
+            OFFSET $2
+        `;
+        const count: number = (await this.db.connection.query(sql, [zipcode, limit, offset])).rows[0].count;
+        return count;
+    }
 }
 
 class ChatDataOperations {
