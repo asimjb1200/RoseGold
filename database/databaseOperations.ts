@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import { Account, Chat, Favorite, Item } from '../models/databaseObjects.js';
 import { generateTokens } from '../security/tokens/tokens.js';
 import { LoginOperationResponse } from '../models/dtos.js';
+import { buildParamList } from '../utils/utils.js';
 
 dotenv.config();
 
@@ -178,6 +179,7 @@ class ItemDataOperations {
         for (let index = 1; index < (newItemsArray.length+1); index++) {
             if (index !== newItemsArray.length) {
                 let paramCounter = index*10;
+                // sqlParamHolder += `(${buildParamList(paramCounter)})`;
                 sqlParamHolder += `($${paramCounter-9}, $${paramCounter-8}, $${paramCounter-7}, $${paramCounter-6}, $${paramCounter-5}, $${paramCounter-4}, $${paramCounter-3}, $${paramCounter-2}, $${paramCounter-1}, $${paramCounter}),`;
             } else {
                 let paramCounter = index*10;
@@ -216,36 +218,74 @@ class ItemDataOperations {
     }
  
     async bulkDeleteItems(ids: number[]) {
-        let deleteParams = "";
-        for (let index = 1; index <= ids.length; index++) {
-            if (index != ids.length) {
-                deleteParams += `$${index},`;
-            } else {
-                deleteParams += `$${index}`;
-            }
-        }
+        let deleteParams = buildParamList(ids.length);
         const sql = `DELETE FROM items WHERE id IN (${deleteParams})`;
         const deletionResult: number = (await this.db.connection.query(sql, ids)).rowCount;
         return !!deletionResult;
     }
  
     async updateItem(newItem: Item) {
- 
+        const valuesList: any[] = [];
+        valuesList.push(
+            newItem.accountid, newItem.image1, newItem.image2, newItem.image3, newItem.isavailable,
+            newItem.pickedup, newItem.zipcode, newItem.dateposted, newItem.name, newItem.description, newItem.id
+        );
+        const sql = `
+            UPDATE items
+            SET
+                accountid =$1, 
+                image1 =$2, 
+                image2 =$3, 
+                image3 =$4, 
+                isavailable =$5, 
+                pickedup =$6, 
+                zipcode =$7, 
+                dateposted =$8, 
+                name =$9, 
+                description =$10
+            WHERE
+                id=$11
+        `;
+        const itemUpdated = (await this.db.connection.query(sql, valuesList)).rowCount;
+        return (itemUpdated ? true : false);
     }
 
-    async fetchItems(limit: string, offset: string, zipcode: number, categories?: number[]) {
-        // TODO: add in support for zipcodes later. we want to geo-restrict results
-        // TODO: add in joins because I'll need to filter off of the category items table later
-        const sql = `
-            SELECT * 
-            FROM items
-            WHERE zipcode=$1 AND isavailable=true AND pickedup=false
-            ORDER BY dateposted DESC
-            LIMIT $1
-            OFFSET $2
-        `;
-        const results: Item[] = (await this.db.connection.query(sql, [limit, offset])).rows;
-        return results;
+    async fetchItems(limit: string, offset: string, zipcode: number | number[], categories?: number[]) {
+        if (Array.isArray(zipcode)){
+            // build the param list
+            const zipcodeParamList = buildParamList(zipcode.length);
+            const paramList: any[] = zipcode.map(x => x);
+            paramList.push(limit, offset);
+            // TODO: add in joins because I'll need to filter off of the category items table later
+            const sql = `
+                SELECT * 
+                FROM items
+                WHERE 
+                    zipcode IN (${zipcodeParamList}) 
+                    AND isavailable=true 
+                    AND pickedup=false
+                ORDER BY dateposted DESC
+                LIMIT $${zipcode.length + 1}
+                OFFSET $${zipcode.length + 2}
+            `;
+            const results: Item[] = (await this.db.connection.query(sql, paramList)).rows;
+            return results;
+        } else {
+            // TODO: add in joins because I'll need to filter off of the category items table later
+            const sql = `
+                SELECT * 
+                FROM items
+                WHERE 
+                    zipcode=$1 
+                    AND isavailable=true 
+                    AND pickedup=false
+                ORDER BY dateposted DESC
+                LIMIT $2
+                OFFSET $3
+            `;
+            const results: Item[] = (await this.db.connection.query(sql, [zipcode, limit, offset])).rows;
+            return results;
+        }
     }
 
     async fetchTotalRecordCount(limit: string, offset: string, zipcode: number, categories?: number[]) {
