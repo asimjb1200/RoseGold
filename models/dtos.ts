@@ -1,3 +1,5 @@
+import { Item } from "./databaseObjects.js";
+
 export type TempUser = {
     email: string; 
     username: string; 
@@ -25,6 +27,11 @@ export type JWTUser = {
     username: string;
     iat: number;
     exp: number;
+}
+
+export type ItemPagination = {
+    totalRecords: number;
+    records: Item[];
 }
 
 declare global {
