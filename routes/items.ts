@@ -31,9 +31,42 @@ router.post('/add-items', check('items').isArray().notEmpty(), async (req:Reques
     }
 });
 
-router.post('/update-items', async (req:Request, res: Response) => {
-    
-});
+router.post(
+    '/update-items',
+    [
+        check('item').notEmpty()
+    ] , 
+    async (req:Request, res:Response) => {
+        const validationErrors = validationResult(req);
+        if (!validationErrors.isEmpty()) {
+            return res.status(422).json({errors: validationErrors.array()});
+        }
+        // make sure someone isn't trying to update an item that they don't own
+        if(req.user && req.user.accountId == req.body.item.accountid) {
+            const item: Item = req.body.item;
+
+            try {
+                const itemUpdated = await itemOps.updateItem(item);
+                const responseForClient = {data: itemUpdated, error: ["Problem with database"]} as ResponseForClient<boolean>;
+                return res.status(200).json(responseForClient);
+            } catch (error) {
+                if (isPostgresError(error)) {
+                    itemLogger.error(`Tried to update item ${item.id}. Code ${error.code} Detail: ${error.detail}`);
+                    const responseForClient = {data: [], error: ["Problem with database"]} as ResponseForClient<any>;
+                    return res.status(503).json(responseForClient);
+                } else {
+                    itemLogger.error(`Tried to update item ${item.id}. Detail: ${error}`);
+                    const responseForClient = {data: [], error: ["Server issue"]} as ResponseForClient<any>;
+                    return res.status(503).json(responseForClient);
+                }
+            }            
+        } else {
+            itemLogger.info(`${req.user?.username} at ${req.ip} tried to update an item (${req.body.item.accountid}) that they don't own. `);
+            const responseForClient = {data: [], error: ["You don't own that item."]} as ResponseForClient<any>;
+            return res.status(401).json(responseForClient);
+        }
+    }
+);
 
 router.post('/delete-items', check('deleteTheseIds').isArray().notEmpty(), async (req:Request, res: Response) => {
     const validationErrors = validationResult(req);
@@ -61,7 +94,8 @@ router.post('/delete-items', check('deleteTheseIds').isArray().notEmpty(), async
     }
 });
 
-router.post('/fetch-items',
+router.post(
+    '/fetch-items',
     [
         check('limit').notEmpty().isInt(), 
         check('offset').notEmpty().isInt(),
@@ -76,8 +110,6 @@ router.post('/fetch-items',
     const limit = req.body.limit! as string;
     const offset = req.body.offset! as string;
     const zipcodes = req.body.zipcode! as number[];
-
-    // return res.status(200).json('success');
 
     try {
         const totalRecords = await itemOps.fetchTotalRecordCount(limit, offset, zipcodes[0]);
@@ -103,5 +135,45 @@ router.post('/fetch-items',
         }
     }
 });
+
+router.post(
+    '/fetch-filtered-items',
+    [
+        check('zipcodes').notEmpty().isArray(),
+        check('categories').notEmpty().isArray(),
+        check('limit').notEmpty().isInt({min: 10, max: 100}),
+        check('offset').notEmpty().isInt({min: 10})
+    ],
+    async (req: Request, res: Response) => {
+        const validationErrors = validationResult(req);
+        if (!validationErrors.isEmpty()) {
+            return res.status(422).json({errors: validationErrors.array()});
+        }
+
+        const zipCodes: number[] = req.body.zipcodes;
+        const categories: number[] = req.body.categories;
+        const limit: number = req.body.limit;
+        const offset: number = req.body.offset;
+
+        try {
+            const records = await itemOps.fetchFilteredItems(zipCodes, categories, limit, offset);
+            if (records.length) {
+                const responseForClient = {data: records, error: []} as ResponseForClient<Item[]>;
+                return res.status(200).json(responseForClient);
+            } else {
+                const responseForClient = {data: records, error: []} as ResponseForClient<Item[]>;
+                return res.status(404).json(responseForClient);
+            }
+        } catch (error) {
+            if (isPostgresError(error)) {
+                itemLogger.error(`Tried to fetch filtered items. Code ${error.code}. Detail: ${error.detail}`);
+                return res.status(503).json();
+            } else {
+                itemLogger.error(`Tried to fetch filtered items: ${error}`);
+                return res.status(500).json();
+            }
+        }
+    }
+);
 
 export default router;

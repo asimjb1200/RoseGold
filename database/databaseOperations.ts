@@ -71,7 +71,7 @@ class UserDataOperations {
         if (acctInfoResponse.rowCount) {
             // generate the user's tokens
             let acctInfo: Account = acctInfoResponse.rows[0];
-            const tokens = generateTokens(acctInfo.username);
+            const tokens = generateTokens(acctInfo.username, acctInfo.accountid!);
             acctInfo.refreshtoken = tokens.refreshToken;
 
             // now update the account model in the db with the new refresh token
@@ -256,7 +256,6 @@ class ItemDataOperations {
             const zipcodeParamList = buildParamList(zipcode.length);
             const paramList: any[] = zipcode.map(x => x);
             paramList.push(limit, offset);
-            // TODO: add in joins because I'll need to filter off of the category items table later
             const sql = `
                 SELECT * 
                 FROM items
@@ -271,7 +270,6 @@ class ItemDataOperations {
             const results: Item[] = (await this.db.connection.query(sql, paramList)).rows;
             return results;
         } else {
-            // TODO: add in joins because I'll need to filter off of the category items table later
             const sql = `
                 SELECT * 
                 FROM items
@@ -286,6 +284,40 @@ class ItemDataOperations {
             const results: Item[] = (await this.db.connection.query(sql, [zipcode, limit, offset])).rows;
             return results;
         }
+    }
+
+    /** use this method to return items that have been filtered by category and location
+     * @param zipcodes an array of zipcodes to search within
+     * @param categoryIds an array of categories to search within
+     */
+    async fetchFilteredItems(zipcodes: number[], categoryIds: number[], limit: number, offset: number) {
+        const zipcodeParamList = buildParamList(zipcodes.length);
+        const categoryParamList = buildParamList(categoryIds.length);
+        /**category values 1st, zipcodes second. */
+        const valuesList: number[] = [...categoryIds,...zipcodes];
+        const limitParam = zipcodes.length + categoryIds.length + 1;
+        const offsetParam = zipcodes.length + categoryIds.length + 2;
+        valuesList.push(limit, offset);
+        const sql = `
+            SELECT
+                items.id, items.accountid, items.zipcode, item_categories.category,
+                items.image1, items.image2, items.image3, items.isavailable,
+                items.pickedup, items.zipcode, items.dateposted, items.name,
+                items.description
+            FROM items
+            INNER JOIN item_categories ON item_categories.itemid = items.id
+            INNER JOIN category ON item_categories.category = category.id
+            WHERE item_categories.category IN (${categoryParamList}) AND
+            WHERE items.zipcode IN (${zipcodeParamList})
+            AND isavailable=true
+            AND pickedup=false
+            ORDER BY dateposted DESC
+            LIMIT ${limitParam}
+            OFFSET ${offsetParam}
+        `;
+
+        const records: Item[] = (await this.db.connection.query(sql, valuesList)).rows;
+        return records;
     }
 
     async fetchTotalRecordCount(limit: string, offset: string, zipcode: number, categories?: number[]) {

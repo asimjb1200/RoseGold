@@ -27,6 +27,7 @@ export type JWTUser = {
     username: string;
     iat: number;
     exp: number;
+    accountId: number;
 }
 
 export type ItemPagination = {
