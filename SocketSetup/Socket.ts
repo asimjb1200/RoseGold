@@ -1,13 +1,13 @@
 import { Server } from "http";
 import { Socket, Server as SocketServer } from "socket.io";
-import { ChatEvents } from "../models/databaseObjects";
+import { chatOps } from "../database/databaseOperations.js";
+import { Chat, ChatEvents } from "../models/databaseObjects.js";
 import { PrivateMessage, SocketMsgForClient } from "../models/dtos";
 
 export class SocketSetup {
     socketIo: SocketServer;
     private static _instance: SocketSetup;
     private allSocketConnections: {[id: number]: Socket} = {};
-
     private constructor(server: Server) {
         this.socketIo = new SocketServer(server);
         this.socketIo.on("connection", (socket: Socket) => {
@@ -22,12 +22,9 @@ export class SocketSetup {
             });
 
             // socket listening for private messages between two users
-            socket.on("private message", (privateMessage: PrivateMessage) => {
-                // if (this.allSocketConnections[privateMessage.receiverAccountId]) {
-                //     this.allSocketConnections[privateMessage.receiverAccountId].emit(ChatEvents.PrivateMessage, privateMessage); // client will have a listener set up for this event
-                //     // now save the user and their msg to the db
-                // }
-                this.emitEvent<PrivateMessage>(privateMessage.receiverAccountId, ChatEvents.PrivateMessage, privateMessage);
+            socket.on("private message", (privateMessage: Chat) => {
+                this.emitEvent<Chat>(privateMessage.recid, ChatEvents.PrivateMessage, privateMessage);
+                chatOps.addMsg(privateMessage);
             });
         });
     }
@@ -43,7 +40,8 @@ export class SocketSetup {
         }
     }
 
-    public fetchChatHistoryBetweenUsers(senderAccountId: number, receiverAccountId: number) {
-        
+    /** fetch the full chat history between two users */
+    async fetchChatHistoryBetweenUsers(senderAccountId: number, receiverAccountId: number) {
+        const chatLog: Chat[] = await chatOps.getChatHistoryBetweenUsers(senderAccountId, receiverAccountId);
     }
 }

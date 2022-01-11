@@ -1,9 +1,10 @@
 import pg, {Pool, QueryResult} from 'pg';
 import dotenv from 'dotenv';
-import { Account, Chat, Favorite, Item } from '../models/databaseObjects.js';
+import { Account, Chat, Favorite, Item, PostgresError } from '../models/databaseObjects.js';
 import { generateTokens } from '../security/tokens/tokens.js';
 import { LoginOperationResponse } from '../models/dtos.js';
 import { buildParamList } from '../utils/utils.js';
+import { chatLogger } from '../loggers/logger.js';
 
 dotenv.config();
 
@@ -344,8 +345,18 @@ class ChatDataOperations {
         return this._instance || (this._instance = new this());
     }
 
-    async addMsg(chatBlock: Chat) {
-
+    addMsg(chatBlock: Chat) {
+        const sql = `
+            INSERT INTO 
+                messages (senderid, recid, message, timestamp)
+            VALUES
+                ($1, $2, $3, $4)
+        `;
+        this.db.connection.query(sql, [chatBlock.senderid, chatBlock.recid, chatBlock.message, chatBlock.timestamp])
+        .then(res => {})
+        .catch((err: PostgresError) => {
+            chatLogger.error(`Could't log user's chat. Code: ${err.code} Detail: ${err.detail}`);
+        })
     }
 
     async deleteMsg(chatBlock: Chat) {
@@ -361,6 +372,17 @@ class ChatDataOperations {
 
         const val = await data;
         return val;
+    }
+
+    /** fetch the full chat history between two users. The oldest message will be the first element in the array (ascending order) */
+    async getChatHistoryBetweenUsers(senderAccountId: number, receiverAccountId: number) {
+        const sql = `
+            SELECT * FROM messages
+            WHERE senderid=$1 AND recid=$2
+            ORDER BY timestamp asc
+        `;
+        const chatLog: Chat[] = (await this.db.connection.query(sql, [senderAccountId, receiverAccountId])).rows;
+        return chatLog;
     }
 }
 
