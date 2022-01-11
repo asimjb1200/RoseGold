@@ -68,6 +68,14 @@ export type PostgresError = {
     routine?: string
 }
 
+export enum ChatEvents {
+    SenderTyping = "Sender Typing",
+    ReceiverTyping = "Receiver Typing",
+    MsgSent = "Message Sent",
+    MsgSeen = "Message Seen",
+    PrivateMessage = "Private Message"
+}
+
 export function isPostgresError(err: any): err is PostgresError {
     return (err as PostgresError).detail !== undefined;
 }

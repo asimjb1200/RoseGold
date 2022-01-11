@@ -134,7 +134,8 @@ router.post(
             return res.status(500).json();
         }
     }
-});
+    }
+);
 
 router.post(
     '/fetch-filtered-items',

@@ -1,6 +1,7 @@
 import app from '../app.js';
 import Debug from 'debug';
 import dotenv from 'dotenv';
+import {SocketSetup} from '../SocketSetup/Socket.js';
 const debug = Debug('rosegold:server');
 import http from 'http';
 
@@ -18,9 +19,11 @@ app.set('port', port);
 
 let server = http.createServer(app);
 
+
 /**
  * Set up socket.io
  */
+export const socketIO = SocketSetup.GetInstance(server);
 // export const io: Server = new Server(server);
 // export const allSocketConnections: {[id: string]: Socket} = {};
 

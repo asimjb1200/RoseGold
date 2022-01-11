@@ -35,6 +35,17 @@ export type ItemPagination = {
     records: Item[];
 }
 
+export type SocketMsgForClient<T> = {
+    data: T
+}
+
+export type PrivateMessage = {
+    timestamp: string;
+    content: string;
+    senderAccountId: number;
+    receiverAccountId: number; 
+}
+
 declare global {
     namespace Express {
         interface Request {
