@@ -24,26 +24,6 @@ let server = http.createServer(app);
  * Set up socket.io
  */
 export const socketIO = SocketSetup.GetInstance(server);
-// export const io: Server = new Server(server);
-// export const allSocketConnections: {[id: string]: Socket} = {};
-
-// io.on("connection", (socket: Socket) => {
-//   socket.on("disconnect me", (walletAddr: string) => {
-//     // determine if that socket exists in the socket connection object
-//     if (allSocketConnections[walletAddr]) {
-//       delete allSocketConnections[walletAddr];
-//     }
-//   });
-
-//   // keep track of the new connection, the key will be the user's wallet address
-//   allSocketConnections[socket.handshake.auth.walletAddress as string] = socket;
-
-//   // define a channel to listen to and communicate with clients on
-//   socket.on('NodeJS Server Port', (data: any) => {
-//     // send data back to the client
-//     io.emit('iOS Listeners', {message: "We are now communicating"});
-//   });
-// });
 
 /**
  * Listen on provided port, on all network interfaces.
