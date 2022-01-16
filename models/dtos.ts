@@ -46,6 +46,17 @@ export type PrivateMessage = {
     receiverAccountId: number; 
 }
 
+export type FilteredItemResult = {
+    id: number;
+    owner: number;
+    name: string;
+    description: string;
+    category: string;
+    isavailable: boolean;
+    pickedup: boolean;
+    dateposted: Date;
+}
+
 declare global {
     namespace Express {
         interface Request {

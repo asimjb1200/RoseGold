@@ -3,7 +3,8 @@ import { check, query, validationResult } from 'express-validator';
 import { itemOps } from '../database/databaseOperations.js';
 import { itemLogger } from '../loggers/logger.js';
 import { isPostgresError, Item } from '../models/databaseObjects.js';
-import { ItemPagination, ResponseForClient } from '../models/dtos.js';
+import { FilteredItemResult, ItemPagination, ResponseForClient } from '../models/dtos.js';
+import { groupBy } from '../utils/utils.js';
 let router = express.Router();
 
 router.post('/add-items', check('items').isArray().notEmpty(), async (req:Request, res: Response) => {
@@ -140,10 +141,10 @@ router.post(
 router.post(
     '/fetch-filtered-items',
     [
-        check('zipcodes').notEmpty().isArray(),
         check('categories').notEmpty().isArray(),
         check('limit').notEmpty().isInt({min: 10, max: 100}),
-        check('offset').notEmpty().isInt({min: 10})
+        check('offset').notEmpty().isInt({min: 0}),
+        check('longAndLat').notEmpty().isString()
     ],
     async (req: Request, res: Response) => {
         const validationErrors = validationResult(req);
@@ -151,18 +152,35 @@ router.post(
             return res.status(422).json({errors: validationErrors.array()});
         }
 
-        const zipCodes: number[] = req.body.zipcodes;
-        const categories: number[] = req.body.categories;
-        const limit: number = req.body.limit;
-        const offset: number = req.body.offset;
+        type FilterQueryParams = {
+            zipcodes: number[];
+            categories: number[];
+            limit: number;
+            offset: number;
+            longAndLat: string;
+            miles: number;
+        }
+
+        const filterQueryParams: FilterQueryParams = req.body;
 
         try {
-            const records = await itemOps.fetchFilteredItems(zipCodes, categories, limit, offset);
+            const records = await itemOps.fetchFilteredItems(
+                                        filterQueryParams.categories, filterQueryParams.limit, 
+                                        filterQueryParams.offset, filterQueryParams.longAndLat, filterQueryParams.miles
+                                    );
+            // group the items with the same id together into arrays under their id number as the key
+            const itemsGroupedById = groupBy(records, "id");
+            
+            // TODO: combine items with the same ids and put their unique category ids into one array
+            const finalItemArray = [];
+
+            
+
             if (records.length) {
-                const responseForClient = {data: records, error: []} as ResponseForClient<Item[]>;
+                const responseForClient = {data: records, error: []} as ResponseForClient<FilteredItemResult[]>;
                 return res.status(200).json(responseForClient);
             } else {
-                const responseForClient = {data: records, error: []} as ResponseForClient<Item[]>;
+                const responseForClient = {data: records, error: []} as ResponseForClient<FilteredItemResult[]>;
                 return res.status(404).json(responseForClient);
             }
         } catch (error) {
