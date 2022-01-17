@@ -144,7 +144,8 @@ router.post(
         check('categories').notEmpty().isArray(),
         check('limit').notEmpty().isInt({min: 10, max: 100}),
         check('offset').notEmpty().isInt({min: 0}),
-        check('longAndLat').notEmpty().isString()
+        check('longAndLat').notEmpty().isString(),
+        check('miles').notEmpty().isInt({min: 10})
     ],
     async (req: Request, res: Response) => {
         const validationErrors = validationResult(req);
@@ -175,7 +176,8 @@ router.post(
 
                 const item: ItemDataForClient = {
                     id: +itemIdKey, name:  firstItem.name, description: firstItem.description, dateposted: firstItem.dateposted,
-                    isavailable: firstItem.isavailable, pickedup: firstItem.pickedup, categories: categoryListForItem, owner: firstItem.owner
+                    isavailable: firstItem.isavailable, pickedup: firstItem.pickedup, categories: categoryListForItem, owner: firstItem.owner,
+                    image1: firstItem.image1, image2: firstItem.image2, image3: firstItem.image3
                 }
 
                 finalItemArray.push(item);

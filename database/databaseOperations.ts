@@ -299,7 +299,7 @@ class ItemDataOperations {
         //valuesList.push(limit, offset);
         const sql = `
             SELECT
-                items.id, items.name, items.description, 
+                items.id, items.name, items.description, items.image1, items.image2, items.image3,
                 items.accountid as "owner", category.description as category,
                 items.isavailable, items.pickedup, items.dateposted
             FROM items

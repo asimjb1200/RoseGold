@@ -51,6 +51,9 @@ export type FilteredItemResult = {
     owner: number;
     name: string;
     description: string;
+    image1: string;
+    image2: string;
+    image3: string;
     category: string;
     isavailable: boolean;
     pickedup: boolean;
@@ -79,6 +82,9 @@ export type ItemDataForClient = {
     pickedup: boolean;
     dateposted: Date;
     categories: string[];
+    image1: string;
+    image2: string;
+    image3: string;
 }
 
 declare global {
