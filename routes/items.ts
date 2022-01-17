@@ -3,7 +3,7 @@ import { check, query, validationResult } from 'express-validator';
 import { itemOps } from '../database/databaseOperations.js';
 import { itemLogger } from '../loggers/logger.js';
 import { isPostgresError, Item } from '../models/databaseObjects.js';
-import { FilteredItemResult, ItemPagination, ResponseForClient } from '../models/dtos.js';
+import { FilteredItemResult, FilterQueryParams, GroupedItems, ItemDataForClient, ItemPagination, ResponseForClient } from '../models/dtos.js';
 import { groupBy } from '../utils/utils.js';
 let router = express.Router();
 
@@ -152,15 +152,6 @@ router.post(
             return res.status(422).json({errors: validationErrors.array()});
         }
 
-        type FilterQueryParams = {
-            zipcodes: number[];
-            categories: number[];
-            limit: number;
-            offset: number;
-            longAndLat: string;
-            miles: number;
-        }
-
         const filterQueryParams: FilterQueryParams = req.body;
 
         try {
@@ -168,19 +159,33 @@ router.post(
                                         filterQueryParams.categories, filterQueryParams.limit, 
                                         filterQueryParams.offset, filterQueryParams.longAndLat, filterQueryParams.miles
                                     );
-            // group the items with the same id together into arrays under their id number as the key
-            const itemsGroupedById = groupBy(records, "id");
-            
-            // TODO: combine items with the same ids and put their unique category ids into one array
-            const finalItemArray = [];
 
-            
+            // group the items with the same id together into arrays under their id number as the key
+            const itemsGroupedById: GroupedItems = groupBy(records, "id");
+            let finalItemArray: ItemDataForClient[] = [];   
+
+            // now go through each key and create a single item with all of the item's categories put into a list
+            for (const itemIdKey in itemsGroupedById) {
+                const itemDTOS = itemsGroupedById[itemIdKey];
+                const categoryListForItem: string[] = itemDTOS.reduce((arrayOfCategories: string[], itemDTO: FilteredItemResult) => {
+                    arrayOfCategories.push(itemDTO.category);
+                    return arrayOfCategories;
+                }, []);
+                const firstItem = itemDTOS[0]; // all items under the current key are the same, so pick any one to use for grabbing info
+
+                const item: ItemDataForClient = {
+                    id: +itemIdKey, name:  firstItem.name, description: firstItem.description, dateposted: firstItem.dateposted,
+                    isavailable: firstItem.isavailable, pickedup: firstItem.pickedup, categories: categoryListForItem, owner: firstItem.owner
+                }
+
+                finalItemArray.push(item);
+            }
 
             if (records.length) {
-                const responseForClient = {data: records, error: []} as ResponseForClient<FilteredItemResult[]>;
+                const responseForClient = {data: finalItemArray, error: []} as ResponseForClient<ItemDataForClient[]>;
                 return res.status(200).json(responseForClient);
             } else {
-                const responseForClient = {data: records, error: []} as ResponseForClient<FilteredItemResult[]>;
+                const responseForClient = {data: [], error: []} as ResponseForClient<ItemDataForClient[]>;
                 return res.status(404).json(responseForClient);
             }
         } catch (error) {

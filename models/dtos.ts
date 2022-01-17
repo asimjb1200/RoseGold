@@ -57,6 +57,30 @@ export type FilteredItemResult = {
     dateposted: Date;
 }
 
+export type FilterQueryParams = {
+    zipcodes: number[];
+    categories: number[];
+    limit: number;
+    offset: number;
+    longAndLat: string;
+    miles: number;
+}
+
+export type GroupedItems = {
+    [id: string]: FilteredItemResult[];
+}
+
+export type ItemDataForClient = {
+    id: number;
+    name: string;
+    description: string;
+    owner: number;
+    isavailable: boolean;
+    pickedup: boolean;
+    dateposted: Date;
+    categories: string[];
+}
+
 declare global {
     namespace Express {
         interface Request {
