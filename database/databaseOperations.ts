@@ -151,9 +151,9 @@ class ItemDataOperations {
         const sql = `
             INSERT INTO
                 items
-                (accountid, image1, image2, image3, isavailable, pickedup, zipcode, dateposted, name, description)
+                (accountid, image1, image2, image3, isavailable, pickedup, zipcode, dateposted, name, description, geolocation)
             VALUES
-                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, (SELECT geolocation FROM accounts WHERE accountid=$1))
         `;
         const insertedRowCount = (await this.db.connection.query(
             sql,
@@ -181,7 +181,7 @@ class ItemDataOperations {
             if (index !== newItemsArray.length) {
                 let paramCounter = index*10;
                 // sqlParamHolder += `(${buildParamList(paramCounter)})`;
-                sqlParamHolder += `($${paramCounter-9}, $${paramCounter-8}, $${paramCounter-7}, $${paramCounter-6}, $${paramCounter-5}, $${paramCounter-4}, $${paramCounter-3}, $${paramCounter-2}, $${paramCounter-1}, $${paramCounter}),`;
+                sqlParamHolder += `($${paramCounter-9}, $${paramCounter-8}, $${paramCounter-7}, $${paramCounter-6}, $${paramCounter-5}, $${paramCounter-4}, $${paramCounter-3}, $${paramCounter-2}, $${paramCounter-1}, $${paramCounter}, (SELECT geolocation FROM accounts WHERE accountid=${paramCounter-9})),`;
             } else {
                 let paramCounter = index*10;
                 sqlParamHolder += `($${paramCounter-9}, $${paramCounter-8}, $${paramCounter-7}, $${paramCounter-6}, $${paramCounter-5}, $${paramCounter-4}, $${paramCounter-3}, $${paramCounter-2}, $${paramCounter-1}, $${paramCounter})`;
@@ -200,7 +200,7 @@ class ItemDataOperations {
         const sql = `
             INSERT INTO
                 items
-                (accountid, image1, image2, image3, isavailable, pickedup, zipcode, dateposted, name, description)
+                (accountid, image1, image2, image3, isavailable, pickedup, zipcode, dateposted, name, description, geolocation)
             VALUES
                 ${sqlParamHolder}
         `;
