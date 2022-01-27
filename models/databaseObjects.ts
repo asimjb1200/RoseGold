@@ -1,9 +1,9 @@
 export type Item = {
     id?: number;
     accountid: number;
-    image1?: string;
-    image2?: string;
-    image3?: string;
+    image1?: String;
+    image2?: String;
+    image3?: String;
     isavailable: boolean;
     pickedup: boolean;
     zipcode: number;

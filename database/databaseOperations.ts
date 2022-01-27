@@ -154,20 +154,37 @@ class ItemDataOperations {
                 (accountid, image1, image2, image3, isavailable, pickedup, zipcode, dateposted, name, description, geolocation)
             VALUES
                 ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, (SELECT geolocation FROM accounts WHERE accountid=$1))
+            RETURNING id
         `;
-        const insertedRowCount = (await this.db.connection.query(
+        return this.db.connection.query(
             sql,
             [
                 newItem.accountid, newItem.image1, newItem.image2, newItem.image3, 
                 newItem.isavailable, newItem.pickedup, newItem.zipcode, newItem.dateposted,
                 newItem.name, newItem.description
-            ])).rowCount;
-        
-        if (insertedRowCount) {
-            return true;
-        } else {
-            return false;
+            ]);
+    }
+
+    async postItemCategories(itemId: number, categories: number[]) {
+        let valueParamsForInsert = '';
+        // build out the value sets that the query will use
+        for (let index = 1; index < categories.length+1; index++) {
+            if (index == categories.length) {
+                valueParamsForInsert += `($1, $${index+1})`
+            } else {
+                valueParamsForInsert += `($1, $${index+1}),`
+            }
         }
+
+        const sql = `
+            INSERT INTO 
+                item_categories (itemid, category)
+            VALUES
+                ${valueParamsForInsert}
+        `;
+        const values: number[] = [];
+        values.push(itemId, ...categories);
+        return this.db.connection.query(sql, values);
     }
  
     /** for inserting multiple items into the database. returns true if successful and false otherwise.
@@ -212,6 +229,9 @@ class ItemDataOperations {
         }
     }
  
+    /** delete an item from the db. this will also delete the item from the `item_categories` table due to a cascade being set up
+     * @param itemId - the id of the item to be deleted
+     */
     async deleteItem(itemId: number) {
         const sql = "DELETE FROM items WHERE id=$1";
         const deleteResult: number = (await this.db.connection.query(sql, [itemId])).rowCount;

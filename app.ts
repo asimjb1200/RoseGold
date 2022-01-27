@@ -10,8 +10,8 @@ import { fileURLToPath } from 'url';
 import compression from 'compression';
 import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
+export const __dirname = dirname(__filename);
+const pathToImagesFolder = path.join(__dirname, '/images');
 import logger from 'morgan';
 import fs from 'fs';
 let accessLogStream = fs.createWriteStream(path.join(__dirname, '/logs/access.log'), { flags: 'a' });
@@ -20,16 +20,14 @@ let app = express();
 
 app.use(compression()); //use compression
 app.use(logger('dev'));
-app.use(logger('combined', { stream: accessLogStream }))
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(logger('combined', { stream: accessLogStream }));
 app.use(cookieParser());
-app.use(express.json());
+app.use(express.json({limit: '100mb'}));
 app.use(express.urlencoded({
-  extended: true
+  extended: true,
+  limit: '100mb'
 }));
-app.use(express.static(path.join(__dirname, 'public')));
-
+app.use('/images', express.static(pathToImagesFolder)); // serve images from the static folder
 app.use('/users', userRouter);
 app.use('/item-handler', itemRouter);
 app.use('/chat-handler', chatRouter);

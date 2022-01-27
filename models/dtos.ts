@@ -11,6 +11,17 @@ export type TempUser = {
     zipcode: number;
 };
 
+export type ItemFromClient = {
+    dateposted: string;
+    name: string;
+    pickedup: string;
+    description: string;
+    accountid: string;
+    zipcode: string;
+    isavailable: string;
+    categoryIds: string;
+}
+
 export type ResponseForClient<T> = {
     data: T;
     error: any[];
