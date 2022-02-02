@@ -311,13 +311,31 @@ class ItemDataOperations {
      * @param zipcodes an array of zipcodes to search within
      * @param categoryIds an array of categories to search within
      */
-    async fetchFilteredItems(categoryIds: number[], limit: number, offset: number, longAndLat: string, miles: number = 5) {
-        //const zipcodeParamList = buildParamList(zipcodes.length);
-        const categoryParamList = buildParamList(categoryIds.length);
-        /**category values 1st, zipcodes second. */
-        const valuesList: number[] = [...categoryIds];
-        //valuesList.push(limit, offset);
-        const sql = `
+    async fetchFilteredItems(categoryIds: number[], limit: number, offset: number, longAndLat: string, miles: number = 10) {
+        let sql: string;
+        let records: FilteredItemResult[];
+        if (categoryIds.length) {
+            const categoryParamList = buildParamList(categoryIds.length);
+            const valuesList: number[] = [...categoryIds];
+            sql = `
+                SELECT
+                    items.id, items.name, items.description, items.image1, items.image2, items.image3,
+                    items.accountid as "owner", category.description as category,
+                    items.isavailable, items.pickedup, items.dateposted
+                FROM items
+                INNER JOIN item_categories ON item_categories.itemid = items.id
+                INNER JOIN category ON item_categories.category = category.id
+                WHERE item_categories.category IN (${categoryParamList})
+                AND isavailable=true
+                AND pickedup=false
+                AND (items.geolocation<@>'${longAndLat}') < ${miles}
+                ORDER BY dateposted DESC
+                LIMIT ${limit}
+                OFFSET ${offset}
+            `;
+            records = (await this.db.connection.query(sql, valuesList)).rows;
+        } else {
+            sql = `
             SELECT
                 items.id, items.name, items.description, items.image1, items.image2, items.image3,
                 items.accountid as "owner", category.description as category,
@@ -325,7 +343,7 @@ class ItemDataOperations {
             FROM items
             INNER JOIN item_categories ON item_categories.itemid = items.id
             INNER JOIN category ON item_categories.category = category.id
-            WHERE item_categories.category IN (${categoryParamList})
+            WHERE item_categories.category IN ((select id from category))
             AND isavailable=true
             AND pickedup=false
             AND (items.geolocation<@>'${longAndLat}') < ${miles}
@@ -333,38 +351,10 @@ class ItemDataOperations {
             LIMIT ${limit}
             OFFSET ${offset}
         `;
-        const records: FilteredItemResult[] = (await this.db.connection.query(sql, valuesList)).rows;
+        }
+
+        records = (await this.db.connection.query(sql)).rows;
         return records;
-
-        //     SELECT
-        //     items.id, items.name, items.description, items.accountid, 
-        //    category.description as Category, category.id as "Category ID",
-        //    items.isavailable,
-        //     items.pickedup, items.dateposted, 
-        //     (items.geolocation<@>'(-94.594299, 39.044432)') as distance
-        // FROM items
-        // INNER JOIN item_categories ON item_categories.itemid = items.id
-        // INNER JOIN category ON item_categories.category = category.id
-        // WHERE item_categories.category IN (1,2,3,4,5)
-        // AND (items.geolocation<@>'(-94.594299, 39.044432)') > 10
-
-        // use this version of the query if I want to bypass sending in a geolocation everytime
-        //     SELECT
-        //     items.id, items.name, items.description, items.accountid, 
-        //    category.description as Category, category.id as "Category ID",
-        //    items.isavailable,
-        //     items.pickedup, items.dateposted, 
-        //     (items.geolocation<@>'(-94.594299, 39.044432)') as distance
-        // FROM items
-        // INNER JOIN item_categories ON item_categories.itemid = items.id
-        // INNER JOIN category ON item_categories.category = category.id
-        // WHERE item_categories.category IN (1,2,3,4,5)
-        // AND (items.geolocation<@>(select
-        //                                   geolocation
-        //                           from 
-        //                                   accounts
-        //                              where 
-        //                                  username='admin')) > 10
     }
 
     async fetchTotalRecordCount(limit: string, offset: string, zipcode: number, categories?: number[]) {

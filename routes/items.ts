@@ -170,7 +170,7 @@ router.post(
 router.post(
     '/fetch-filtered-items',
     [
-        check('categories').notEmpty().isArray(),
+        check('categories').isArray(),
         check('limit').notEmpty().isInt({ min: 10, max: 100 }),
         check('offset').notEmpty().isInt({ min: 0 }),
         check('longAndLat').notEmpty().isString(),
