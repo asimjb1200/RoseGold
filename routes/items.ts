@@ -1,12 +1,15 @@
 import express, { Request, Response } from 'express';
 import multer, { Multer } from 'multer';
 import { check, query, validationResult } from 'express-validator';
+import v from 'express-validator';
 import { itemOps } from '../database/databaseOperations.js';
 import { itemLogger } from '../loggers/logger.js';
 import { isPostgresError, Item } from '../models/databaseObjects.js';
 import { FilteredItemResult, FilterQueryParams, GroupedItems, ItemDataForClient, ItemFromClient, ItemPagination, ResponseForClient } from '../models/dtos.js';
 import { FileSystemFunctions } from '../utils/fileSystem.js';
 import { groupBy } from '../utils/utils.js';
+import validator from 'validator';
+
 let router = express.Router();
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
@@ -174,7 +177,8 @@ router.post(
         check('limit').notEmpty().isInt({ min: 10, max: 100 }),
         check('offset').notEmpty().isInt({ min: 0 }),
         check('longAndLat').notEmpty().isString(),
-        check('miles').notEmpty().isInt({ min: 10 })
+        check('miles').notEmpty().isInt({ min: 10 }),
+        check('searchTerm')
     ],
     async (req: Request, res: Response) => {
         const validationErrors = validationResult(req);
@@ -184,11 +188,27 @@ router.post(
 
         const filterQueryParams: FilterQueryParams = req.body;
 
+        let safeText: string = '';
+        if (filterQueryParams.searchTerm.length) {
+            const isAlpha = validator.isAlpha(filterQueryParams.searchTerm, 'en-US', {ignore: ' '});
+            if (isAlpha) {
+                safeText = validator.escape(validator.trim(filterQueryParams.searchTerm));
+            }
+        }
+        
         try {
-            const records = await itemOps.fetchFilteredItems(
-                filterQueryParams.categories, filterQueryParams.limit,
-                filterQueryParams.offset, filterQueryParams.longAndLat, filterQueryParams.miles
-            );
+            let records: FilteredItemResult[];
+            if (safeText.length) {
+                records = await itemOps.fetchFilteredItems(
+                    filterQueryParams.categories, filterQueryParams.limit,
+                    filterQueryParams.offset, filterQueryParams.longAndLat, filterQueryParams.miles, safeText
+                );
+            } else {
+                records = await itemOps.fetchFilteredItems(
+                    filterQueryParams.categories, filterQueryParams.limit,
+                    filterQueryParams.offset, filterQueryParams.longAndLat, filterQueryParams.miles
+                );
+            }
 
             // group the items with the same id together into arrays under their id number as the key
             const itemsGroupedById: GroupedItems = groupBy(records, "id");
@@ -230,6 +250,10 @@ router.post(
         }
     }
 );
+
+router.post('/search-items', check('searchTerm').isAlpha().trim().escape(), async(req:Request, res:Response) => {
+    const searchTerm = req.body;
+});
 
 router.post('/image-practice', async (req: Request, res: Response) => {
     // await FileSystemFunctions.deleteItemImages();

@@ -311,12 +311,13 @@ class ItemDataOperations {
      * @param zipcodes an array of zipcodes to search within
      * @param categoryIds an array of categories to search within
      */
-    async fetchFilteredItems(categoryIds: number[], limit: number, offset: number, longAndLat: string, miles: number = 10) {
+    async fetchFilteredItems(categoryIds: number[], limit: number, offset: number, longAndLat: string, miles: number = 10, searchTerm = '') {
         let sql: string;
         let records: FilteredItemResult[];
         if (categoryIds.length) {
             const categoryParamList = buildParamList(categoryIds.length);
             const valuesList: number[] = [...categoryIds];
+
             sql = `
                 SELECT
                     items.id, items.name, items.description, items.image1, items.image2, items.image3,
@@ -326,6 +327,7 @@ class ItemDataOperations {
                 INNER JOIN item_categories ON item_categories.itemid = items.id
                 INNER JOIN category ON item_categories.category = category.id
                 WHERE item_categories.category IN (${categoryParamList})
+                ${searchTerm.length ? "AND items.name LIKE '%"+searchTerm+"%'": ''}
                 AND isavailable=true
                 AND pickedup=false
                 AND (items.geolocation<@>'${longAndLat}') < ${miles}
@@ -333,27 +335,28 @@ class ItemDataOperations {
                 LIMIT ${limit}
                 OFFSET ${offset}
             `;
-            records = (await this.db.connection.query(sql, valuesList)).rows;
+            records = (await this.db.connection.query(sql, categoryIds)).rows;
         } else {
             sql = `
-            SELECT
-                items.id, items.name, items.description, items.image1, items.image2, items.image3,
-                items.accountid as "owner", category.description as category,
-                items.isavailable, items.pickedup, items.dateposted
-            FROM items
-            INNER JOIN item_categories ON item_categories.itemid = items.id
-            INNER JOIN category ON item_categories.category = category.id
-            WHERE item_categories.category IN ((select id from category))
-            AND isavailable=true
-            AND pickedup=false
-            AND (items.geolocation<@>'${longAndLat}') < ${miles}
-            ORDER BY dateposted DESC
-            LIMIT ${limit}
-            OFFSET ${offset}
-        `;
+                SELECT
+                    items.id, items.name, items.description, items.image1, items.image2, items.image3,
+                    items.accountid as "owner", category.description as category,
+                    items.isavailable, items.pickedup, items.dateposted
+                FROM items
+                INNER JOIN item_categories ON item_categories.itemid = items.id
+                INNER JOIN category ON item_categories.category = category.id
+                WHERE item_categories.category IN ((select id from category))
+                ${searchTerm.length ? "AND items.name LIKE '%"+searchTerm+"%'": ''}
+                AND isavailable=true
+                AND pickedup=false
+                AND (items.geolocation<@>'${longAndLat}') < ${miles}
+                ORDER BY dateposted DESC
+                LIMIT ${limit}
+                OFFSET ${offset}
+            `;
+            records = (await this.db.connection.query(sql)).rows;
         }
 
-        records = (await this.db.connection.query(sql)).rows;
         return records;
     }
 

@@ -78,6 +78,7 @@ export type FilterQueryParams = {
     offset: number;
     longAndLat: string;
     miles: number;
+    searchTerm: string
 }
 
 export type GroupedItems = {
