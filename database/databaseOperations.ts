@@ -2,7 +2,7 @@ import pg, {Pool, QueryResult} from 'pg';
 import dotenv from 'dotenv';
 import { Account, Chat, Favorite, Item, PostgresError } from '../models/databaseObjects.js';
 import { generateTokens } from '../security/tokens/tokens.js';
-import { FilteredItemResult, LoginOperationResponse } from '../models/dtos.js';
+import { ChatWithUsername, FilteredItemResult, LoginOperationResponse } from '../models/dtos.js';
 import { buildParamList } from '../utils/utils.js';
 import { chatLogger } from '../loggers/logger.js';
 
@@ -422,6 +422,25 @@ class ChatDataOperations {
         `;
         const chatLog: Chat[] = (await this.db.connection.query(sql, [senderAccountId, receiverAccountId])).rows;
         return chatLog;
+    }
+
+    /** fetch every chat msg where the user is the sender
+     * @param accountId - the account id that should be the sender */
+    async getAllChatsForMsgs(accountId: number|string) {
+        const sql = `
+            select 
+                messages.*, 
+                accounts.username as "senderUsername", 
+                (select username from accounts where accountid = recid) as "receiverUsername"
+            from messages
+            inner join accounts
+            on messages.senderid = accounts.accountid 
+            where senderid = $1 OR recid = $1
+            order by messages.id
+        `;
+
+        const chatMsgs: ChatWithUsername[] = (await this.db.connection.query(sql, [accountId])).rows;
+        return chatMsgs;
     }
 }
 

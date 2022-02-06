@@ -1,4 +1,4 @@
-import { Item } from "./databaseObjects.js";
+import { Chat, Item } from "./databaseObjects.js";
 
 export type TempUser = {
     email: string; 
@@ -85,6 +85,10 @@ export type GroupedItems = {
     [id: string]: FilteredItemResult[];
 }
 
+export type GroupedChats = {
+    [accountId: string]: ChatWithUsername[]
+}
+
 export type ItemDataForClient = {
     id: number;
     name: string;
@@ -97,6 +101,16 @@ export type ItemDataForClient = {
     image1: string;
     image2: string;
     image3: string;
+}
+
+export type ChatWithUsername = {
+    id: number;
+    senderid: number;
+    recid:number;
+    message:string;
+    timestamp:string;
+    senderUsername:string;
+    receiverUsername: string;
 }
 
 declare global {
