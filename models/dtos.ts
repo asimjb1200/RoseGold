@@ -104,7 +104,7 @@ export type ItemDataForClient = {
 }
 
 export type ChatWithUsername = {
-    id: number;
+    id: string;
     senderid: number;
     recid:number;
     message:string;

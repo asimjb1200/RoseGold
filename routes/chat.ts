@@ -1,7 +1,9 @@
 import express, { Request, Response } from 'express';
-import { chatOps } from '../database/databaseOperations.js';
+import { socketIO } from '../bin/www.js';
+//import { socketIO } from '../bin/www.js';
+import { chatOps, userOps } from '../database/databaseOperations.js';
 import { chatLogger } from '../loggers/logger.js';
-import { Chat, isPostgresError } from '../models/databaseObjects.js';
+import { Chat, ChatEvents, isPostgresError } from '../models/databaseObjects.js';
 import { GroupedChats, ChatWithUsername, ResponseForClient } from '../models/dtos.js';
 
 let router = express.Router();
@@ -12,37 +14,37 @@ router.get('/chat-history', async (req:Request, res:Response) => {
     let accountId = Number(req.query.accountId as string);
 
     try {
-            // pull up the chat history for this user
-    const chatHistory:ChatWithUsername[] = await chatOps.getAllChatsForMsgs(accountId);
-    
-    // now group the messages into an object with the receiver id as the keys
-    // TODO: limit the amount of chats that are returned. figure out how to handle the cases when a user has a lot of chats
-    
-    /**holds every conversation between the different users that the requesting user has interacted with. Conversations are grouped by the account id's of the 
-     * receiving users
-     */
-    const convoHolder:GroupedChats = chatHistory.reduce((accumulator: GroupedChats, currentChat: ChatWithUsername) => {
-        // check to see if the recevier's key already exists
-        if (accumulator.hasOwnProperty(currentChat.recid.toString()) && currentChat.recid != accountId) {
-            accumulator[currentChat.recid.toString()].push(currentChat);
-        } else if (currentChat.recid == accountId){
-            // if the current receiver id is the account id I am currently working with, add that chat to the rec id if it already exists, if not create it
-            if (accumulator.hasOwnProperty(currentChat.senderid.toString())) {
-                accumulator[currentChat.senderid.toString()].push(currentChat);
+        // pull up the chat history for this user
+        const chatHistory:ChatWithUsername[] = await chatOps.getAllChatsForMsgs(accountId);
+        
+        // now group the messages into an object with the receiver id as the keys
+        // TODO: limit the amount of chats that are returned. figure out how to handle the cases when a user has a lot of chats
+        
+        /**holds every conversation between the different users that the requesting user has interacted with. Conversations are grouped by the account id's of the 
+         * receiving users
+         */
+        const convoHolder:GroupedChats = chatHistory.reduce((accumulator: GroupedChats, currentChat: ChatWithUsername) => {
+            // check to see if the recevier's key already exists (it's a number but node converts nums -> strings in object keys)
+            if (accumulator.hasOwnProperty(currentChat.recid) && currentChat.recid != accountId) {
+                accumulator[currentChat.recid].push(currentChat);
+            } else if (currentChat.recid == accountId){
+                // if the current receiver id is the account id I am currently working with, add that chat to the rec id if it already exists, if not create it
+                if (accumulator.hasOwnProperty(currentChat.senderid)) {
+                    accumulator[currentChat.senderid].push(currentChat);
+                } else {
+                    accumulator[currentChat.senderid] = [];
+                    accumulator[currentChat.senderid].push(currentChat);
+                }
             } else {
-                accumulator[currentChat.senderid.toString()] = [];
-                accumulator[currentChat.senderid.toString()].push(currentChat);
+                accumulator[currentChat.recid] = [];
+                accumulator[currentChat.recid].push(currentChat);
             }
-        } else {
-            accumulator[currentChat.recid.toString()] = [];
-            accumulator[currentChat.recid.toString()].push(currentChat);
-        }
 
-        return accumulator;
-    }, {});
+            return accumulator;
+        }, {});
 
-    const dataForClient: ResponseForClient<GroupedChats> = {data: convoHolder, error: []};
-    return res.status(200).json(dataForClient);
+        const dataForClient: ResponseForClient<GroupedChats> = {data: convoHolder, error: []};
+        return res.status(200).json(dataForClient);
     } catch (error) {
         if (isPostgresError(error)) {
             chatLogger.error(`A problem occurred while fetching chats for user ${accountId} from the database code: ${error.code} details: ${error.detail}`);
@@ -53,5 +55,24 @@ router.get('/chat-history', async (req:Request, res:Response) => {
         }
     }
 });
+
+router.get('/test-socket', async (req:Request, res:Response) => {
+    let chatData = await chatOps.addMsg(
+        {id: '313f904b-9e4d-4114-9325-719ccde1026c', senderid: 17, recid: 16, 
+        message: "testing your notification", timestamp: new Date().toISOString()}
+    );
+    
+    // grab the username of the sender and receiver and attach it to the chat object
+    const senderUsername = await userOps.getUsername(chatData.senderid);
+    const receiverUsername = await userOps.getUsername(chatData.recid);
+    const chatForClient:ChatWithUsername = {
+        id: chatData.id!, message: chatData.message, senderUsername, 
+        receiverUsername, senderid:chatData.senderid, recid:chatData.recid, 
+        timestamp:chatData.timestamp
+    }
+    
+    socketIO.emitEvent<ChatWithUsername>(16, ChatEvents.PrivateMessage, chatForClient);
+    return res.status(201).json('good');
+})
 
 export default router;

@@ -41,7 +41,7 @@ export type Account = {
 };
 
 export type Chat = {
-    id?: number;
+    id: string;
     senderid: number;
     recid: number;
     message: string;

@@ -1,8 +1,9 @@
 import { Server } from "http";
 import { Socket, Server as SocketServer } from "socket.io";
-import { chatOps } from "../database/databaseOperations.js";
-import { Chat, ChatEvents } from "../models/databaseObjects.js";
-import { PrivateMessage, SocketMsgForClient } from "../models/dtos";
+import { chatOps, userOps } from "../database/databaseOperations.js";
+import { chatLogger } from "../loggers/logger.js";
+import { Chat, ChatEvents, isPostgresError } from "../models/databaseObjects.js";
+import { ChatWithUsername, PrivateMessage, SocketMsgForClient } from "../models/dtos";
 
 export class SocketSetup {
     socketIo: SocketServer;
@@ -21,10 +22,28 @@ export class SocketSetup {
                 }
             });
 
-            // socket listening for private messages between two users
-            socket.on("private message", (privateMessage: Chat) => {
-                this.emitEvent<Chat>(privateMessage.recid, ChatEvents.PrivateMessage, privateMessage);
-                chatOps.addMsg(privateMessage);
+            socket.on("Private Message", async (privateMessageString: string) => {
+                // client sends the chat object over as a string, must decode
+                let privateMessage:Chat = JSON.parse(privateMessageString);
+
+                try {
+                    let chatData = await chatOps.addMsg(privateMessage);
+    
+                    // grab the username of the sender and receiver and attach it to the chat object
+                    const senderUsername = await userOps.getUsername(chatData.senderid);
+                    const receiverUsername = await userOps.getUsername(chatData.recid);
+                    const chatForClient:ChatWithUsername = {id: chatData.id, message: chatData.message, senderUsername, receiverUsername, senderid:chatData.senderid, recid:chatData.recid, timestamp:chatData.timestamp}
+                    
+                    this.emitEvent<ChatWithUsername>(privateMessage.recid, ChatEvents.PrivateMessage, chatForClient);
+                } catch(err) {
+                    if (isPostgresError(err)) {
+                        chatLogger.error(`An error occurred when trying to save a new chat message. Code: ${err.code} Details: ${err.detail}`);
+
+                    } else {
+                        chatLogger.error(`An error occurred when trying to save a new chat message: ${err}`);
+                        console.log(err)
+                    }
+                }
             });
         });
     }
@@ -33,10 +52,33 @@ export class SocketSetup {
         return this._instance || (this._instance = new this(server));
     }
 
+    public async listenForPrivateChats() {
+        console.log("listener is set up");
+        // socket listening for private messages between two users
+        this.socketIo.on("Private Message", async (privateMessage: Chat) => {
+            console.log("listener has been hit")
+            try {
+                let chatData = await chatOps.addMsg(privateMessage as Chat);
+
+                // grab the username of the sender and receiver and attach it to the chat object
+                const senderUsername = await userOps.getUsername(chatData.senderid);
+                const receiverUsername = await userOps.getUsername(chatData.recid);
+                const chatForClient:ChatWithUsername = {id: chatData.id, message: chatData.message, senderUsername, receiverUsername, senderid:chatData.senderid, recid:chatData.recid, timestamp:chatData.timestamp}
+                
+                this.emitEvent<ChatWithUsername>(privateMessage.recid, ChatEvents.PrivateMessage, chatForClient);
+            } catch(err) {
+                console.log(err)
+                console.log('error occurred');
+            }
+        });
+    }
+
     public emitEvent<T>(to: number, event: ChatEvents, data: T) {
         if (this.allSocketConnections[to]) {
             let dataForClient: SocketMsgForClient<T> = {data};
             this.allSocketConnections[to].emit(event, dataForClient);
+        } else {
+            console.log("couldn't find that socket");
         }
     }
 

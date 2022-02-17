@@ -56,6 +56,12 @@ class UserDataOperations {
         return (newUser.rowCount ? true : false);
     }
 
+    async getUsername(accountId: number) {
+        const sql = "select username from accounts where accountid=$1";
+        let username:string = (await this.db.connection.query(sql, [accountId])).rows[0].username;
+        return username;
+    }
+
     async deleteUser(username: string) {
 
     }
@@ -384,18 +390,19 @@ class ChatDataOperations {
         return this._instance || (this._instance = new this());
     }
 
-    addMsg(chatBlock: Chat) {
+    async addMsg(chatBlock: Chat) {
+        let chatData:Chat = chatBlock;
+        let {id, senderid, recid, message, timestamp} = chatBlock;
         const sql = `
             INSERT INTO 
-                messages (senderid, recid, message, timestamp)
+                messages (id, senderid, recid, message, timestamp)
             VALUES
-                ($1, $2, $3, $4)
+                ($1, $2, $3, $4, $5)
+            RETURNING *
         `;
-        this.db.connection.query(sql, [chatBlock.senderid, chatBlock.recid, chatBlock.message, chatBlock.timestamp])
-        .then(res => {})
-        .catch((err: PostgresError) => {
-            chatLogger.error(`Could't log user's chat. Code: ${err.code} Detail: ${err.detail}`);
-        })
+
+        const newChat: Chat = (await this.db.connection.query(sql, [id, senderid, recid, message, timestamp])).rows[0];
+        return newChat;
     }
 
     async deleteMsg(chatBlock: Chat) {
@@ -436,7 +443,7 @@ class ChatDataOperations {
             inner join accounts
             on messages.senderid = accounts.accountid 
             where senderid = $1 OR recid = $1
-            order by messages.id
+            order by messages.timestamp asc
         `;
 
         const chatMsgs: ChatWithUsername[] = (await this.db.connection.query(sql, [accountId])).rows;
