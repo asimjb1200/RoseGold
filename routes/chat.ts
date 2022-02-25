@@ -58,8 +58,8 @@ router.get('/chat-history', async (req:Request, res:Response) => {
 
 router.get('/test-socket', async (req:Request, res:Response) => {
     let chatData = await chatOps.addMsg(
-        {id: '313f904b-9e4d-4114-9325-719ccde1026c', senderid: 17, recid: 16, 
-        message: "testing your notification", timestamp: new Date().toISOString()}
+        {id: "40b4059a-c093-4004-a74d-ba018f5e854c", senderid: 15, recid: 16, 
+        message: "Hey admin, testing out your push notis", timestamp: new Date().toISOString()}
     );
     
     // grab the username of the sender and receiver and attach it to the chat object
