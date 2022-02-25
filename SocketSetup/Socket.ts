@@ -37,6 +37,7 @@ export class SocketSetup {
                     this.emitEvent<ChatWithUsername>(privateMessage.recid, ChatEvents.PrivateMessage, chatForClient);
                 } catch(err) {
                     if (isPostgresError(err)) {
+                        console.log(err)
                         chatLogger.error(`An error occurred when trying to save a new chat message. Code: ${err.code} Details: ${err.detail}`);
 
                     } else {
@@ -50,27 +51,6 @@ export class SocketSetup {
 
     public static GetInstance(server: Server){
         return this._instance || (this._instance = new this(server));
-    }
-
-    public async listenForPrivateChats() {
-        console.log("listener is set up");
-        // socket listening for private messages between two users
-        this.socketIo.on("Private Message", async (privateMessage: Chat) => {
-            console.log("listener has been hit")
-            try {
-                let chatData = await chatOps.addMsg(privateMessage as Chat);
-
-                // grab the username of the sender and receiver and attach it to the chat object
-                const senderUsername = await userOps.getUsername(chatData.senderid);
-                const receiverUsername = await userOps.getUsername(chatData.recid);
-                const chatForClient:ChatWithUsername = {id: chatData.id, message: chatData.message, senderUsername, receiverUsername, senderid:chatData.senderid, recid:chatData.recid, timestamp:chatData.timestamp}
-                
-                this.emitEvent<ChatWithUsername>(privateMessage.recid, ChatEvents.PrivateMessage, chatForClient);
-            } catch(err) {
-                console.log(err)
-                console.log('error occurred');
-            }
-        });
     }
 
     public emitEvent<T>(to: number, event: ChatEvents, data: T) {
