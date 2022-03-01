@@ -226,7 +226,7 @@ router.post(
                 const item: ItemDataForClient = {
                     id: +itemIdKey, name: firstItem.name, description: firstItem.description, dateposted: firstItem.dateposted,
                     isavailable: firstItem.isavailable, pickedup: firstItem.pickedup, categories: categoryListForItem, owner: firstItem.owner,
-                    image1: firstItem.image1, image2: firstItem.image2, image3: firstItem.image3
+                    image1: firstItem.image1, image2: firstItem.image2, image3: firstItem.image3, ownerUsername: firstItem.ownerUsername
                 }
 
                 finalItemArray.push(item);

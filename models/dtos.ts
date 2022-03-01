@@ -69,6 +69,7 @@ export type FilteredItemResult = {
     isavailable: boolean;
     pickedup: boolean;
     dateposted: Date;
+    ownerUsername: string;
 }
 
 export type FilterQueryParams = {
@@ -101,6 +102,7 @@ export type ItemDataForClient = {
     image1: string;
     image2: string;
     image3: string;
+    ownerUsername?: string;
 }
 
 export type ChatWithUsername = {

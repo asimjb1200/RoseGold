@@ -39,7 +39,6 @@ export class SocketSetup {
                     if (isPostgresError(err)) {
                         console.log(err)
                         chatLogger.error(`An error occurred when trying to save a new chat message. Code: ${err.code} Details: ${err.detail}`);
-
                     } else {
                         chatLogger.error(`An error occurred when trying to save a new chat message: ${err}`);
                         console.log(err)

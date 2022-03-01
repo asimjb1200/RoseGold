@@ -1,11 +1,12 @@
 import express from "express";
 import { Request, Response } from "express";
 import {body, check, Result, validationResult} from "express-validator";
-import { userOps } from "../database/databaseOperations.js";
+import { itemOps, userOps } from "../database/databaseOperations.js";
 import { userLogger } from "../loggers/logger.js";
-import { Account, isPostgresError } from "../models/databaseObjects.js";
-import { LoginOperationResponse, ResponseForClient, TempUser } from "../models/dtos.js";
+import { Account, isPostgresError, Item } from "../models/databaseObjects.js";
+import { FilteredItemResult, GroupedItems, ItemDataForClient, LoginOperationResponse, ResponseForClient, TempUser } from "../models/dtos.js";
 import {createHash, Hash} from 'crypto';
+import { groupBy } from "../utils/utils.js";
 let router = express.Router();
 
 router.post(
@@ -110,5 +111,46 @@ router.post(
         }
     }
 );
+
+router.get('/items', async (req:Request, res:Response) => {
+    const accountId = req.query.accountId;
+    if (!accountId) return res.status(500).json('no account id provided');
+    // I will grab the user's avatar from the front end and I'll 
+    try {
+        // grab the user's items from the db
+        let usersItems:FilteredItemResult[] = await itemOps.fetchUsersItems(accountId as string);
+
+        // group the items with the same id together into arrays under their id number as the key
+        const itemsGroupedById: GroupedItems = groupBy(usersItems, "id");
+        let finalItemArray: ItemDataForClient[] = [];
+
+        // now go through each key and create a single item with all of the item's categories put into a list
+        for (const itemIdKey in itemsGroupedById) {
+            const itemDTOS = itemsGroupedById[itemIdKey];
+            const categoryListForItem: string[] = itemDTOS.reduce((arrayOfCategories: string[], itemDTO: FilteredItemResult) => {
+                arrayOfCategories.push(itemDTO.category);
+                return arrayOfCategories;
+            }, []);
+            const firstItem = itemDTOS[0]; // all items under the current key are the same, so pick any one to use for grabbing info
+
+            const item: ItemDataForClient = {
+                id: +itemIdKey, name: firstItem.name, description: firstItem.description, dateposted: firstItem.dateposted,
+                isavailable: firstItem.isavailable, pickedup: firstItem.pickedup, categories: categoryListForItem, owner: firstItem.owner,
+                image1: firstItem.image1, image2: firstItem.image2, image3: firstItem.image3
+            }
+
+            finalItemArray.push(item);
+        }
+        const responseForClient = { data: finalItemArray, error: [] } as ResponseForClient<ItemDataForClient[]>;
+        
+        return res.status(200).json(responseForClient);
+    } catch (err) {
+        if (isPostgresError(err)) {
+            userLogger.error(`encountered a problem trying to fetch items for user ${accountId}. The error ${err.code}: ${err.detail}`);
+            return res.status(500).json('an error occurred');
+        }
+    }
+
+});
 
 export default router;

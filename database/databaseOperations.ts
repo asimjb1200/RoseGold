@@ -2,7 +2,7 @@ import pg, {Pool, QueryResult} from 'pg';
 import dotenv from 'dotenv';
 import { Account, Chat, Favorite, Item, PostgresError } from '../models/databaseObjects.js';
 import { generateTokens } from '../security/tokens/tokens.js';
-import { ChatWithUsername, FilteredItemResult, LoginOperationResponse } from '../models/dtos.js';
+import { ChatWithUsername, FilteredItemResult, ItemDataForClient, LoginOperationResponse } from '../models/dtos.js';
 import { buildParamList } from '../utils/utils.js';
 import { chatLogger } from '../loggers/logger.js';
 
@@ -317,7 +317,7 @@ class ItemDataOperations {
      * @param zipcodes an array of zipcodes to search within
      * @param categoryIds an array of categories to search within
      */
-    async fetchFilteredItems(categoryIds: number[], limit: number, offset: number, longAndLat: string, miles: number = 10, searchTerm = '') {
+    async fetchFilteredItems(categoryIds: number[], limit: number, offset: number, longAndLat: string, miles: number = 10, searchTerm = ''): Promise<FilteredItemResult[]> {
         let sql: string;
         let records: FilteredItemResult[];
         if (categoryIds.length) {
@@ -328,7 +328,7 @@ class ItemDataOperations {
                 SELECT
                     items.id, items.name, items.description, items.image1, items.image2, items.image3,
                     items.accountid as "owner", category.description as category,
-                    items.isavailable, items.pickedup, items.dateposted
+                    items.isavailable, items.pickedup, items.dateposted, (select username from accounts where accountid = items.accountid) as "ownerUsername"
                 FROM items
                 INNER JOIN item_categories ON item_categories.itemid = items.id
                 INNER JOIN category ON item_categories.category = category.id
@@ -347,7 +347,7 @@ class ItemDataOperations {
                 SELECT
                     items.id, items.name, items.description, items.image1, items.image2, items.image3,
                     items.accountid as "owner", category.description as category,
-                    items.isavailable, items.pickedup, items.dateposted
+                    items.isavailable, items.pickedup, items.dateposted,  (select username from accounts where accountid = items.accountid) as "ownerUsername"
                 FROM items
                 INNER JOIN item_categories ON item_categories.itemid = items.id
                 INNER JOIN category ON item_categories.category = category.id
@@ -378,6 +378,23 @@ class ItemDataOperations {
         const count: number = (await this.db.connection.query(sql, [zipcode, limit, offset])).rows[0].count;
         return count;
     }
+
+    async fetchUsersItems(accountId:string) {
+        const sql = `
+            SELECT
+            items.id, items.name, items.description, items.image1, items.image2, items.image3,
+            items.accountid as "owner", category.description as category,
+            items.isavailable, items.pickedup, items.dateposted
+            FROM items
+            INNER JOIN item_categories ON item_categories.itemid = items.id
+            INNER JOIN category ON item_categories.category = category.id
+            WHERE items.accountId=$1
+            order by items.id
+        `;
+        const items: FilteredItemResult[] = (await this.db.connection.query(sql, [accountId])).rows;
+
+        return items;
+    }
 }
 
 class ChatDataOperations {
@@ -390,6 +407,7 @@ class ChatDataOperations {
         return this._instance || (this._instance = new this());
     }
 
+    /** Inserts the new chat message between 2 users into the database so that their history is maintained */
     async addMsg(chatBlock: Chat) {
         let chatData:Chat = chatBlock;
         let {id, senderid, recid, message, timestamp} = chatBlock;
