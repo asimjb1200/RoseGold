@@ -56,6 +56,22 @@ class UserDataOperations {
         return (newUser.rowCount ? true : false);
     }
 
+    /** used when a user wants to see all of the items that they have listed. Returns an array of item names and ids. Intended to be used in a list view on the client.
+     * @param accountId - the owner of the items to be returned
+     */
+    async itemsOwnedByAccountId(accountId:string) {
+        const sql = "select id, name from items where accountid=$1";
+        return this.db.connection.query(sql, [accountId]);''
+    }
+
+    async getAddressInfo(accountId:string) {
+        const sql = `
+            select address, zipcode from accounts where accountid=$1
+        `;
+
+        return this.db.connection.query(sql, [accountId]);
+    }
+
     async getUsername(accountId: number) {
         const sql = "select username from accounts where accountid=$1";
         let username:string = (await this.db.connection.query(sql, [accountId])).rows[0].username;
@@ -137,6 +153,16 @@ class UserDataOperations {
        const sql = "SELECT refreshtoken FROM accounts WHERE username=$1";
        const refresher: string = (await this.db.connection.query(sql, [username])).rows[0].refreshtoken;
        return refresher;
+   }
+
+   async updateUserAddress(newFullAddress:string, newZip:number, newGeolocation:string, accountId:number) {
+       const sql = `
+            UPDATE accounts
+            SET address=$1, zipcode=$2, geolocation=$3
+            WHERE accountid=$4
+       `;
+
+       return this.db.connection.query(sql, [newFullAddress, newZip, newGeolocation, accountId]);
    }
 }
 
@@ -394,6 +420,26 @@ class ItemDataOperations {
         const items: FilteredItemResult[] = (await this.db.connection.query(sql, [accountId])).rows;
 
         return items;
+    }
+
+    /** fetch every category id that an item belongs to
+     * @param itemId - the id of the item to get the categories for
+     */
+    async fetchCategoriesForItem(itemId:string) {
+        const sql = `
+            select category.description from item_categories 
+            INNER JOIN category ON item_categories.category = category.id
+            where itemid=$1
+        `;
+        return this.db.connection.query(sql, [itemId]);
+    }
+
+    /** fetch the details for a single item from the table
+     * @param itemId - the id of the item to get the details for
+     */
+    async fetchItemData(itemId:string) {
+        const sql = "select * from items where id=$1";
+        return this.db.connection.query(sql, [itemId]);
     }
 }
 

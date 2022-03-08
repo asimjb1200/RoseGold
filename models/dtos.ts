@@ -115,6 +115,11 @@ export type ChatWithUsername = {
     receiverUsername: string;
 }
 
+export type ItemNameAndId = {
+    id:number;
+    name:string;
+}
+
 declare global {
     namespace Express {
         interface Request {

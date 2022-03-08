@@ -251,6 +251,66 @@ router.post(
     }
 );
 
+router.delete('/delete-item', async (req:Request, res:Response) => {
+    let itemToDelete = req.query.itemId as string;
+    let itemName = req.query.itemName as string;
+
+    try {
+        // remove the items images from the database
+        let itemDeleted:boolean = await itemOps.deleteItem(+itemToDelete);
+
+        // remove item images
+        await FileSystemFunctions.deleteItemImages("dee", itemName);
+
+        return res.status(200).json(itemDeleted);
+    } catch (error) {
+        if (isPostgresError(error)) {
+            itemLogger.error(`Problem when trying to delete item ${itemToDelete}: ${error.code} ${error.detail}`);
+        } else {
+            itemLogger.error(`Problem when trying to delete item ${itemToDelete}: ${error}`);
+        }
+        return res.status(500).json("problem occurred when deleting");
+    }
+});
+
+router.get('/item-details-for-edit', async (req:Request, res:Response) => {
+    let itemId = req.query.itemId as string;
+
+    try {
+        // grab the item's info from the database
+        let itemInfo:Item = (await itemOps.fetchItemData(itemId)).rows[0];
+
+        // grab the item's categories from the data base
+        let itemCategories:{description:string}[] = (await itemOps.fetchCategoriesForItem(itemId)).rows;
+
+        // now build the item for the client to use
+        const itemForClient:ItemDataForClient = {
+            id: itemInfo.id!,// id will always be there in this scenario due to the prior query
+            name: itemInfo.name,
+            description: itemInfo.description,
+            dateposted: new Date(itemInfo.dateposted),
+            owner: req.user?.accountId ?? 17,
+            isavailable: itemInfo.isavailable,
+            pickedup: itemInfo.pickedup,
+            ownerUsername: req.user?.username ?? "dee",
+            image1: itemInfo.image1 ?? "",
+            image2: itemInfo.image2 ?? "",
+            image3: itemInfo.image3 ?? "",
+            categories: itemCategories.map(itemObj => itemObj.description)
+        };
+
+        return res.status(200).json(itemForClient);
+
+    } catch (error) {
+        if (isPostgresError(error)) {
+            itemLogger.error(`Getting details for item ${itemId}: ${error.code} ${error.detail}`);
+            return res.status(500).json('db error');
+        } else {
+
+        }
+    }
+});
+
 router.post('/search-items', check('searchTerm').isAlpha().trim().escape(), async(req:Request, res:Response) => {
     const searchTerm = req.body;
 });

@@ -4,7 +4,7 @@ import {body, check, Result, validationResult} from "express-validator";
 import { itemOps, userOps } from "../database/databaseOperations.js";
 import { userLogger } from "../loggers/logger.js";
 import { Account, isPostgresError, Item } from "../models/databaseObjects.js";
-import { FilteredItemResult, GroupedItems, ItemDataForClient, LoginOperationResponse, ResponseForClient, TempUser } from "../models/dtos.js";
+import { FilteredItemResult, GroupedItems, ItemDataForClient, ItemNameAndId, LoginOperationResponse, ResponseForClient, TempUser } from "../models/dtos.js";
 import {createHash, Hash} from 'crypto';
 import { groupBy } from "../utils/utils.js";
 let router = express.Router();
@@ -112,6 +112,26 @@ router.post(
     }
 );
 
+router.post('/change-address', async (req:Request, res:Response) => {
+    // grab the user's new data
+    const { newAddress, newCity, newZip, newState, newGeolocation } = req.body;
+    const newFullAddress = `${newAddress as string} ${newCity as string} ${newState as string}`;
+    // const user = req.user?.accountId;
+
+    try {
+        // update the database with the new info
+        await userOps.updateUserAddress(newFullAddress, newZip as number, newGeolocation as string, 16);
+        return res.status(204).json('data updated');
+    } catch (error) {
+        if (isPostgresError(error)) {
+            userLogger.error(`Tried to update user ${req.user?.accountId}'s address info: ${error.code} ${error.detail}`);
+        }
+        console.log(error)
+        userLogger.error(`Tried to update user ${req.user?.accountId}'s address info: ${error}`);
+        return res.status(500).json('error occurred');
+    }
+});
+
 router.get('/items', async (req:Request, res:Response) => {
     const accountId = req.query.accountId;
     if (!accountId) return res.status(500).json('no account id provided');
@@ -151,6 +171,35 @@ router.get('/items', async (req:Request, res:Response) => {
         }
     }
 
+});
+
+router.get('/address-details',async (req:Request, res:Response) => {
+    // get the account id from the request
+    const accountid = req.query.accountId as string;
+    // grab the user's address details from the database
+    const addressInfo: {address:string, zipcode:number} = (await userOps.getAddressInfo(accountid)).rows[0];
+    
+    return res.status(200).json(addressInfo);
+});
+
+router.get('/user-items',async (req:Request, res:Response) => {
+    // grab the account id from the request query
+    const accountId = req.query.accountId as string;
+    // req.user?.accountId use this one in prod
+
+    try {
+        // query the items table for any items owned by this user
+        const itemsUnderAccount: ItemNameAndId[] = (await userOps.itemsOwnedByAccountId(accountId)).rows;
+        return res.status(200).json(itemsUnderAccount);
+    } catch (error) {
+        if (isPostgresError(error)) {
+            userLogger.error(`Tried to fetch items for user 17: ${error.code} ${error.detail}`);
+            return res.status(500).json('error occurred');
+        } else {
+            userLogger.error(`Tried to fetch items for user 16: ${error}`);
+            return res.status(500).json('error occurred');
+        }
+    }
 });
 
 export default router;

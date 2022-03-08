@@ -1,5 +1,6 @@
 import fs from 'fs';
 import { __dirname } from '../app.js';
+import { userLogger } from '../loggers/logger.js';
 //const __dirname = process.cwd();
 
 export namespace FileSystemFunctions {
@@ -36,7 +37,10 @@ export namespace FileSystemFunctions {
         return files;
     }
 
-    export const deleteItemImages = async () =>{
-
+    /** use this one to delete the entire dir that for the item */
+    export const deleteItemImages = async (username:string, itemName:string) =>{
+        const path = `${__dirname}/images/${username}/${itemName}/`;
+        // fs.rmdir(path, {recursive:true, force:true})
+        fs.rm(path, {recursive:true, force:true}, () => {userLogger.info(`deleted photos for ${username}'s ${itemName} item`)});
     }
 }
