@@ -12,6 +12,7 @@ export type TempUser = {
 };
 
 export type ItemFromClient = {
+    itemId?:string;
     dateposted: string;
     name: string;
     pickedup: string;

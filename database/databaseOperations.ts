@@ -213,6 +213,7 @@ class ItemDataOperations {
                 item_categories (itemid, category)
             VALUES
                 ${valueParamsForInsert}
+            ON CONFLICT (itemid, category) DO NOTHING;
         `;
         const values: number[] = [];
         values.push(itemId, ...categories);

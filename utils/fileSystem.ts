@@ -40,7 +40,7 @@ export namespace FileSystemFunctions {
     /** use this one to delete the entire dir that for the item */
     export const deleteItemImages = async (username:string, itemName:string) =>{
         const path = `${__dirname}/images/${username}/${itemName}/`;
-        // fs.rmdir(path, {recursive:true, force:true})
+
         fs.rm(path, {recursive:true, force:true}, () => {userLogger.info(`deleted photos for ${username}'s ${itemName} item`)});
     }
 }

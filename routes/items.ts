@@ -315,7 +315,55 @@ router.post('/search-items', check('searchTerm').isAlpha().trim().escape(), asyn
     const searchTerm = req.body;
 });
 
-router.post('/image-practice', async (req: Request, res: Response) => {
+router.post('/edit-item', upload.array('images'), async (req:Request, res:Response) => {
+    try {
+        let imagesForItem: Express.Multer.File[] = req.files as Express.Multer.File[];
+        const itemData: ItemFromClient = req.body;
+        const categoryIds: number[] = JSON.parse(itemData.categoryIds.trim());
+        
+        const itemForDB: Item = {
+            id: +itemData.itemId!.trim(),
+            accountid: Number(itemData.accountid.trim()),
+            name: itemData.name.trim(),
+            description: itemData.description.trim(),
+            dateposted: itemData.dateposted.trim(),
+            pickedup: (String(true) == itemData.pickedup.trim()),
+            isavailable: (String(true) == itemData.isavailable.trim()),
+            zipcode: Number(itemData.zipcode.trim())
+        };
+
+        // update the item's pictures
+        await Promise.all([
+            FileSystemFunctions.saveItemImages(imagesForItem[0], "admin", itemForDB.name),
+            FileSystemFunctions.saveItemImages(imagesForItem[1], "admin", itemForDB.name),
+            FileSystemFunctions.saveItemImages(imagesForItem[2], "admin", itemForDB.name)
+        ]);
+
+        const imageFilePaths: string[] = await FileSystemFunctions.getImagesFilePathForItem("admin", itemForDB.name);
+        itemForDB.image1 = imageFilePaths[0];
+        itemForDB.image2 = imageFilePaths[1];
+        itemForDB.image3 = imageFilePaths[2];
+
+        //update the item in the item table
+        let itemUpdated = itemOps.updateItem(itemForDB);
+
+        // now update the item's categories in the item_categories table
+        const categoriesInserted = await itemOps.postItemCategories(itemForDB.id!, categoryIds);
+
+        // if all is okay, send the OK
+        return res.status(201).json('ok')        
+    } catch (error) {
+        console.log(error);
+        if (isPostgresError(error)) {
+            itemLogger.error(`tried to update item: ${error.code} ${error.detail}`);
+        } else {
+            itemLogger.error(`tried to update item: ${error}`);
+        }
+        return res.status(500).json('error');
+    }
+})
+
+router.post('/image-practice', upload.array('images'), async (req: Request, res: Response) => {
     // await FileSystemFunctions.deleteItemImages();
     // let files = await FileSystemFunctions.loadItemImages('admin', 'Asians\r\n');
     const imageFilePaths: string[] = await FileSystemFunctions.getImagesFilePathForItem('admin', 'Test Plant');
