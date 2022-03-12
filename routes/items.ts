@@ -334,12 +334,12 @@ router.post('/edit-item', upload.array('images'), async (req:Request, res:Respon
 
         // update the item's pictures
         await Promise.all([
-            FileSystemFunctions.saveItemImages(imagesForItem[0], "admin", itemForDB.name),
-            FileSystemFunctions.saveItemImages(imagesForItem[1], "admin", itemForDB.name),
-            FileSystemFunctions.saveItemImages(imagesForItem[2], "admin", itemForDB.name)
+            FileSystemFunctions.saveItemImages(imagesForItem[0], "dee", itemForDB.name),
+            FileSystemFunctions.saveItemImages(imagesForItem[1], "dee", itemForDB.name),
+            FileSystemFunctions.saveItemImages(imagesForItem[2], "dee", itemForDB.name)
         ]);
 
-        const imageFilePaths: string[] = await FileSystemFunctions.getImagesFilePathForItem("admin", itemForDB.name);
+        const imageFilePaths: string[] = await FileSystemFunctions.getImagesFilePathForItem("dee", itemForDB.name);
         itemForDB.image1 = imageFilePaths[0];
         itemForDB.image2 = imageFilePaths[1];
         itemForDB.image3 = imageFilePaths[2];
