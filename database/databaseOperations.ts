@@ -37,10 +37,10 @@ class UserDataOperations {
             INSERT INTO accounts 
                 (
                     username, accounttype, email, password,
-                    avatarurl, userrating, address, zipcode, refreshtoken
+                    avatarurl, userrating, address, zipcode, refreshtoken, geolocation
                 )
             VALUES
-                ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             RETURNING *
         `;
         const newUser = (
@@ -48,7 +48,7 @@ class UserDataOperations {
                                 sql, 
                                 [
                                     acct.username, acct.accounttype, acct.email, acct.password,
-                                    acct.avatarurl, acct.userrating, acct.address, acct.zipcode, acct.refreshtoken
+                                    acct.avatarurl, acct.userrating, acct.address, acct.zipcode, acct.refreshtoken, acct.geolocation
                                 ]
                             )
                         );
@@ -102,7 +102,7 @@ class UserDataOperations {
 
             if (userUpdated) {
                 // return the access token to the client for future use
-                return {accessToken: tokens.accessToken, userLoggedIn: true, updateError: false};
+                return {accessToken: tokens.accessToken, userLoggedIn: true, updateError: false, accountId: acctInfo.accountid!};
             } else {
                 return {accessToken: '', userLoggedIn: false, updateError: true};
             }

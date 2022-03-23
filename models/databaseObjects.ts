@@ -30,7 +30,7 @@ export type Category = {
 export type Account = {
     accountid?: number;
     username: string;
-    accounttype: boolean;
+    accounttype: number;
     email: string;
     password: string;
     avatarurl: string;
@@ -38,6 +38,7 @@ export type Account = {
     address: string;
     zipcode: number;
     refreshtoken: string;
+    geolocation: string;
 };
 
 export type Chat = {

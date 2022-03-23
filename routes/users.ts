@@ -4,41 +4,35 @@ import {body, check, Result, validationResult} from "express-validator";
 import { itemOps, userOps } from "../database/databaseOperations.js";
 import { userLogger } from "../loggers/logger.js";
 import { Account, isPostgresError, Item } from "../models/databaseObjects.js";
-import { FilteredItemResult, GroupedItems, ItemDataForClient, ItemNameAndId, LoginOperationResponse, ResponseForClient, TempUser } from "../models/dtos.js";
+import { FilteredItemResult, GroupedItems, ItemDataForClient, ItemNameAndId, LoginOperationResponse, ResponseForClient, TempUser, UserForClient } from "../models/dtos.js";
 import {createHash, Hash} from 'crypto';
 import { groupBy } from "../utils/utils.js";
+import { FileSystemFunctions } from "../utils/fileSystem.js";
+import multer from "multer";
 let router = express.Router();
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
 
 router.post(
     '/register-user',
-    [
-        check('email').isEmail().normalizeEmail(),
-        check('username').notEmpty().isAlphanumeric(),
-        check('password').notEmpty().isAlphanumeric().isLength({min: 8, max: 16}),
-        check('avatarUrl').notEmpty().isURL(),
-        check('address').notEmpty().isAlphanumeric('en-US', {ignore: ' '}),
-        check('city').notEmpty().isAlpha('en-US', {ignore: ' '}),
-        check('state').notEmpty().isAlpha('en-US', {ignore: ' '}).isLength({max: 2}), //will be using state abbrs.
-        check('zipcode').notEmpty().isInt().isLength({max: 5}),
-        check('accountType').notEmpty().isInt({min: 0, max: 1})
-    ],
-    async (req: Request, res: Response) => {
-        const validationErrors = validationResult(req);
-        if (!validationErrors.isEmpty()) {
-            return res.status(422).json({errors: validationErrors.array()});
-        }
-
+    upload.single("avatar")
+    ,async (req: Request, res: Response) => {
+        let avatarImage = req.file as Express.Multer.File;
         const rawUser: TempUser = req.body;
+
+        // save the user's avatar image
+        await FileSystemFunctions.saveAvatarImage(avatarImage);
         const dbUser: Account = {
-            username: rawUser.username,
+            username: rawUser.username.trim(),
             userrating: 0,
-            password: rawUser.password,
-            address: `${rawUser.address} ${rawUser.city} ${rawUser.state}`,
-            zipcode: rawUser.zipcode,
-            accounttype: req.body.accountType,
-            email: rawUser.email,
+            password: rawUser.password.trim(),
+            address: `${rawUser.address.trim()} ${rawUser.city.trim()} ${rawUser.state.trim()}`,
+            zipcode: +rawUser.zipcode.trim(),
+            accounttype: 1,
+            email: rawUser.email.trim(),
             refreshtoken: '',
-            avatarurl: rawUser.avatarUrl
+            avatarurl: `/Users/asimbrown/Desktop/Dev/Projects/RoseGold/build/images/avatars/${avatarImage.originalname}`,
+            geolocation: rawUser.geolocation.trim()
         };
 
         // hash the user's password. crypto module uses utf8 encoding by default
@@ -55,10 +49,11 @@ router.post(
                 if (error.constraint && error.constraint == 'username_taken') {
                     return res.status(409).json({msg: 'username taken'});
                 } else {
-                    userLogger.error(`error code ${error.code} when trying to create a new user: ${error.detail}`);
+                    userLogger.error(`error code ${error.code} when trying to create a new user: ${error}`);
                     return res.status(500).json('there was an error in the db');
                 }
             } else {
+                console.log(error);
                 userLogger.error(`error while trying to create a user: ${error}`);
                 return res.status(500).json({msg: 'user not created'});
             }
@@ -87,7 +82,8 @@ router.post(
             let loginStatus: LoginOperationResponse = await userOps.logUserIn(username, pwHash);
             if (loginStatus.userLoggedIn) {
                 let data = loginStatus.accessToken;
-                const responseForClient = {data, error: []} as ResponseForClient<string>;
+                const userForClient:UserForClient = {username, accessToken:loginStatus.accessToken, accountId:loginStatus.accountId!, avatarUrl: `/images/avatars/${username}`};
+                const responseForClient = {data:userForClient, error: []} as ResponseForClient<UserForClient>;
                 userLogger.info(`${username} just logged in.`);
                 return res.status(200).json(responseForClient);
             } else if(!loginStatus.updateError && !loginStatus.userLoggedIn) {

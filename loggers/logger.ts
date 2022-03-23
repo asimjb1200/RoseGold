@@ -5,11 +5,13 @@ log4js.configure({
         userLogs: {type: "file", filename: "build/logs/users/userlogs.log", maxLogSize: 10485760, backups: 1, compress: true},
         itemLogs: {type: "file", filename: "build/logs/items/itemlogs.log", maxLogSize: 10485760, backups: 1, compress: true},
         chatLogs: {type: "file", filename: "build/logs/chat/chatlogs.log", maxLogSize: 10485760, backups: 1, compress: true},
+        tokenErrors: { type: "file", filename: "build/logs/tokens/tokenLogs.log", maxLogSize: 10485760, backups: 1, compress: true },
         networkingLogs: {type: "file", filename: "build/logs/networking/nwlogs.log", maxLogSize: 10485760, backups: 1, compress: true},
         console: { type: 'console' }
     },
     categories: {
         userLogs: {appenders: ["userLogs"], level: "trace"},
+        tokenLogs: { appenders: ["tokenErrors"], level: "debug"},
         itemLogs: {appenders: ["itemLogs"], level: "debug"},
         chatLogs: {appenders: ["chatLogs"], level: "debug"},
         networkingLogs: {appenders: ["networkingLogs"], level: "debug"},
@@ -25,7 +27,9 @@ const itemLogger = log4js.getLogger("itemLogs");
 const chatLogger = log4js.getLogger("chatLogs");
 /** for any errors or logging pertaining to networking and fetching outside resources */
 const networkLogger = log4js.getLogger("networkingLogs");
+/** for any errors or logging pertaining to JWT's */
+const tokenLogger = log4js.getLogger("tokenLogs");
 
 export {
-    userLogger, chatLogger, itemLogger, networkLogger
+    userLogger, chatLogger, itemLogger, networkLogger, tokenLogger
 };

@@ -48,7 +48,7 @@ export async function authenticateJWT(req: Request, res: Response, next: NextFun
             // if so, issue the user a new access token
             if (isWithinTenMinutes) {
                 // first refresh the user's old token
-                const newAccessTokenResponse = await refreshOldToken(req.user.username as string);
+                const newAccessTokenResponse = await refreshOldToken(req.user.username as string, req.user.accountId as number);
                 if (typeof newAccessTokenResponse == 'number') {
                     res.sendStatus(newAccessTokenResponse);
                 } else {
@@ -68,7 +68,7 @@ export async function authenticateJWT(req: Request, res: Response, next: NextFun
 };
 
 /** This function takes in the user's refresh token, verifies it and then issues a new access token to them */
-export async function refreshOldToken(username: string): Promise<string | number> {
+export async function refreshOldToken(username: string, accountId:number): Promise<string | number> {
     try {
         // find the user's refresh token in the database
         const refresh_token = await userOps.findRefreshTokenByUser(username);
@@ -77,7 +77,7 @@ export async function refreshOldToken(username: string): Promise<string | number
         }
         // keep it this way, if their refresh token has expired they'll just have to login again and create a new one
         const user: any = jwt.verify(refresh_token, process.env.REFRESHTOKENSECRET!);
-        const newAccessToken = jwt.sign({ username: user.username }, process.env.ACCESSTOKENSECRET!, { expiresIn: '1h' });
+        const newAccessToken = jwt.sign({ username: user.username, accountId }, process.env.ACCESSTOKENSECRET!, { expiresIn: '1h' });
     
         return newAccessToken
     } catch (dbError) {

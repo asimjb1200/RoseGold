@@ -8,7 +8,8 @@ export type TempUser = {
     address: string; 
     city: string; 
     state: string;
-    zipcode: number;
+    zipcode: string;
+    geolocation: string;
 };
 
 export type ItemFromClient = {
@@ -33,7 +34,15 @@ export type LoginOperationResponse = {
     accessToken: string;
     userLoggedIn: boolean;
     updateError: boolean;
+    accountId?:number;
 };
+
+export type UserForClient = {
+    username:string;
+    accountId:number;
+    accessToken:string;
+    avatarUrl:string;
+}
 
 export type JWTUser = {
     username: string;
@@ -119,6 +128,11 @@ export type ChatWithUsername = {
 export type ItemNameAndId = {
     id:number;
     name:string;
+}
+
+export type UserTokens = {
+    accessToken: string;
+    refreshToken: string;
 }
 
 declare global {
