@@ -1,14 +1,13 @@
 import express from 'express';
 import path from 'path';
 import cookieParser from 'cookie-parser';
-import * as dbHelpers from './database/databaseOperations.js';
-import schedule from 'node-schedule';
 import userRouter from './routes/users.js';
 import itemRouter from './routes/items.js';
 import chatRouter from './routes/chat.js';
 import { fileURLToPath } from 'url';
 import compression from 'compression';
 import { dirname } from 'path';
+import { authenticateJWT } from './security/tokens/tokens.js';
 const __filename = fileURLToPath(import.meta.url);
 export const __dirname = dirname(__filename);
 const pathToImagesFolder = path.join(__dirname, '/images');
@@ -29,6 +28,6 @@ app.use(express.urlencoded({
 }));
 app.use('/images', express.static(pathToImagesFolder)); // serve images from the static folder
 app.use('/users', userRouter);
-app.use('/item-handler', itemRouter);
-app.use('/chat-handler', chatRouter);
+app.use('/item-handler', authenticateJWT, itemRouter);
+app.use('/chat-handler', authenticateJWT, chatRouter);
 export default app;

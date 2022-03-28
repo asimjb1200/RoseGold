@@ -1,7 +1,6 @@
 import express, { Request, Response } from 'express';
-import multer, { Multer } from 'multer';
+import multer from 'multer';
 import { check, query, validationResult } from 'express-validator';
-import v from 'express-validator';
 import { itemOps } from '../database/databaseOperations.js';
 import { itemLogger } from '../loggers/logger.js';
 import { isPostgresError, Item } from '../models/databaseObjects.js';
@@ -15,6 +14,8 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 router.post('/add-items', upload.array('images'), async (req: Request, res: Response) => {
+    if (!req.user) return res.status(403).json('unauthorized');
+
     let imagesForItem: Express.Multer.File[] = req.files as Express.Multer.File[];
 
     const itemData: ItemFromClient = req.body;
@@ -32,16 +33,14 @@ router.post('/add-items', upload.array('images'), async (req: Request, res: Resp
     };
 
     try {
-        // TODO: grab the user's name from the jwt later down the line
-        const username = 'dee'; // req.user?.username;
-        await FileSystemFunctions.createDirForUser(username, itemData.name);
+        await FileSystemFunctions.createDirForUser(req.user.username, itemData.name);
         await Promise.all([
-            FileSystemFunctions.saveItemImages(imagesForItem[0], username, itemForDB.name),
-            FileSystemFunctions.saveItemImages(imagesForItem[1], username, itemForDB.name),
-            FileSystemFunctions.saveItemImages(imagesForItem[2], username, itemForDB.name)
+            FileSystemFunctions.saveItemImages(imagesForItem[0], req.user.username, itemForDB.name),
+            FileSystemFunctions.saveItemImages(imagesForItem[1], req.user.username, itemForDB.name),
+            FileSystemFunctions.saveItemImages(imagesForItem[2], req.user.username, itemForDB.name)
         ]);
 
-        const imageFilePaths: string[] = await FileSystemFunctions.getImagesFilePathForItem(username, itemForDB.name);
+        const imageFilePaths: string[] = await FileSystemFunctions.getImagesFilePathForItem(req.user.username, itemForDB.name);
         itemForDB.image1 = imageFilePaths[0];
         itemForDB.image2 = imageFilePaths[1];
         itemForDB.image3 = imageFilePaths[2];
@@ -50,9 +49,12 @@ router.post('/add-items', upload.array('images'), async (req: Request, res: Resp
         
         // now save the categories if the user passed them in
         const categoriesInserted = await itemOps.postItemCategories(idOfInsertedItem, categoryIds);
+        const responseForClient = {data:'insert successful', error:[]} as ResponseForClient<string>;
 
-        //return (dataInserted ? res.status(201).json("yeh hoe") : res.status(500).json("fail"));
-        res.status(201).json("yeh hoe") 
+        if (res.locals.newAccessToken) {
+            responseForClient.newToken = res.locals.newAccessToken;
+        }
+        res.status(201).json(responseForClient); 
     } catch (error) {
         if (isPostgresError(error)) {
             itemLogger.error(`Tried to bulk add items. Pg code: ${error.code} Details: ${error.detail}`);
@@ -81,6 +83,9 @@ router.post(
             try {
                 const itemUpdated = await itemOps.updateItem(item);
                 const responseForClient = { data: itemUpdated, error: ["Problem with database"] } as ResponseForClient<boolean>;
+                if (res.locals.newAccessToken) {
+                    responseForClient.newToken = res.locals.newAccessToken;
+                }
                 return res.status(200).json(responseForClient);
             } catch (error) {
                 if (isPostgresError(error)) {
@@ -108,13 +113,22 @@ router.post('/delete-items', check('deleteTheseIds').isArray().notEmpty(), async
     }
 
     const deleteTheseIds: number[] = req.body.deleteTheseIds;
+
     try {
         if (deleteTheseIds.length > 1) {
-            const deleteComplete = itemOps.bulkDeleteItems(deleteTheseIds);
-            return res.status(200).json();
+            const deleteComplete = await itemOps.bulkDeleteItems(deleteTheseIds);
+            const responseForClient = {data:deleteComplete, error:[]} as ResponseForClient<boolean>;
+            if (res.locals.newAccessToken) {
+                responseForClient.newToken = res.locals.newAccessToken;
+            }
+            return res.status(200).json(responseForClient);
         } else {
-            const deleteComplete = itemOps.deleteItem(deleteTheseIds[0]);
-            return res.status(200).json();
+            const deleteComplete = await itemOps.deleteItem(deleteTheseIds[0]);
+            const responseForClient = {data:deleteComplete, error:[]} as ResponseForClient<boolean>;
+            if (res.locals.newAccessToken) {
+                responseForClient.newToken = res.locals.newAccessToken;
+            }
+            return res.status(200).json(responseForClient);
         }
     } catch (error) {
         if (isPostgresError(error)) {
@@ -127,48 +141,48 @@ router.post('/delete-items', check('deleteTheseIds').isArray().notEmpty(), async
     }
 });
 
-router.post(
-    '/fetch-items',
-    [
-        check('limit').notEmpty().isInt(),
-        check('offset').notEmpty().isInt(),
-        check('zipcodes').notEmpty().isArray()
-    ],
-    async (req: Request, res: Response) => {
-        const validationErrors = validationResult(req);
-        if (!validationErrors.isEmpty()) {
-            return res.status(422).json({ errors: validationErrors.array() });
-        }
+// router.post(
+//     '/fetch-items',
+//     [
+//         check('limit').notEmpty().isInt(),
+//         check('offset').notEmpty().isInt(),
+//         check('zipcodes').notEmpty().isArray()
+//     ],
+//     async (req: Request, res: Response) => {
+//         const validationErrors = validationResult(req);
+//         if (!validationErrors.isEmpty()) {
+//             return res.status(422).json({ errors: validationErrors.array() });
+//         }
 
-        const limit = req.body.limit! as string;
-        const offset = req.body.offset! as string;
-        const zipcodes = req.body.zipcode! as number[];
+//         const limit = req.body.limit! as string;
+//         const offset = req.body.offset! as string;
+//         const zipcodes = req.body.zipcode! as number[];
 
-        try {
-            const totalRecords = await itemOps.fetchTotalRecordCount(limit, offset, zipcodes[0]);
-            const records: Item[] = await itemOps.fetchItems(limit, offset, zipcodes[0]);
+//         try {
+//             const totalRecords = await itemOps.fetchTotalRecordCount(limit, offset, zipcodes[0]);
+//             const records: Item[] = await itemOps.fetchItems(limit, offset, zipcodes[0]);
 
-            if (records.length) {
-                const recordData: ItemPagination = {
-                    records,
-                    totalRecords
-                }
-                const responseForClient = { data: recordData, error: [] } as ResponseForClient<ItemPagination>;
-                return res.status(200).json(responseForClient);
-            } else {
-                return res.status(404).json('no records found');
-            }
-        } catch (error) {
-            if (isPostgresError(error)) {
-                itemLogger.error(`item fetch failed. Code: ${error.code}. Details: ${error.detail}`);
-                return res.status(503).json();
-            } else {
-                itemLogger.error(`item fetch failed. Details: ${error}`);
-                return res.status(500).json();
-            }
-        }
-    }
-);
+//             if (records.length) {
+//                 const recordData: ItemPagination = {
+//                     records,
+//                     totalRecords
+//                 }
+//                 const responseForClient = { data: recordData, error: [] } as ResponseForClient<ItemPagination>;
+//                 return res.status(200).json(responseForClient);
+//             } else {
+//                 return res.status(404).json('no records found');
+//             }
+//         } catch (error) {
+//             if (isPostgresError(error)) {
+//                 itemLogger.error(`item fetch failed. Code: ${error.code}. Details: ${error.detail}`);
+//                 return res.status(503).json();
+//             } else {
+//                 itemLogger.error(`item fetch failed. Details: ${error}`);
+//                 return res.status(500).json();
+//             }
+//         }
+//     }
+// );
 
 router.post(
     '/fetch-filtered-items',
@@ -181,6 +195,8 @@ router.post(
         check('searchTerm')
     ],
     async (req: Request, res: Response) => {
+        if (!req.user) return res.status(403).json('unauthorized');
+
         const validationErrors = validationResult(req);
         if (!validationErrors.isEmpty()) {
             return res.status(422).json({ errors: validationErrors.array() });
@@ -234,9 +250,15 @@ router.post(
 
             if (records.length) {
                 const responseForClient = { data: finalItemArray, error: [] } as ResponseForClient<ItemDataForClient[]>;
+                if (res.locals.newAccessToken) {
+                    responseForClient.newToken = res.locals.newAccessToken;
+                }
                 return res.status(200).json(responseForClient);
             } else {
                 const responseForClient = { data: [], error: [] } as ResponseForClient<ItemDataForClient[]>;
+                if (res.locals.newAccessToken) {
+                    responseForClient.newToken = res.locals.newAccessToken;
+                }
                 return res.status(404).json(responseForClient);
             }
         } catch (error) {
@@ -252,17 +274,20 @@ router.post(
 );
 
 router.delete('/delete-item', async (req:Request, res:Response) => {
+    if (!req.user) return res.status(403).json('unauthorized');
     let itemToDelete = req.query.itemId as string;
     let itemName = req.query.itemName as string;
 
     try {
         // remove the items images from the database
         let itemDeleted:boolean = await itemOps.deleteItem(+itemToDelete);
-
         // remove item images
-        await FileSystemFunctions.deleteItemImages("dee", itemName);
-
-        return res.status(200).json(itemDeleted);
+        await FileSystemFunctions.deleteItemImages(req.user.username, itemName);
+        const responseForClient = {data:itemDeleted, error:[]} as ResponseForClient<boolean>;
+        if (res.locals.newAccessToken) {
+            responseForClient.newToken = res.locals.newAccessToken;
+        }
+        return res.status(200).json(responseForClient);
     } catch (error) {
         if (isPostgresError(error)) {
             itemLogger.error(`Problem when trying to delete item ${itemToDelete}: ${error.code} ${error.detail}`);
@@ -275,6 +300,8 @@ router.delete('/delete-item', async (req:Request, res:Response) => {
 
 router.get('/item-details-for-edit', async (req:Request, res:Response) => {
     let itemId = req.query.itemId as string;
+
+    if (!req.user) return res.status(403).json('unauthorized');
 
     try {
         // grab the item's info from the database
@@ -289,17 +316,21 @@ router.get('/item-details-for-edit', async (req:Request, res:Response) => {
             name: itemInfo.name,
             description: itemInfo.description,
             dateposted: new Date(itemInfo.dateposted),
-            owner: req.user?.accountId ?? 17,
+            owner: req.user.accountId,
             isavailable: itemInfo.isavailable,
             pickedup: itemInfo.pickedup,
-            ownerUsername: req.user?.username ?? "dee",
+            ownerUsername: req.user.username,
             image1: itemInfo.image1 ?? "",
             image2: itemInfo.image2 ?? "",
             image3: itemInfo.image3 ?? "",
             categories: itemCategories.map(itemObj => itemObj.description)
         };
 
-        return res.status(200).json(itemForClient);
+        const responseForClient = {data:itemForClient, error:[]} as ResponseForClient<ItemDataForClient>;
+        if (res.locals.newAccessToken) {
+            responseForClient.newToken = res.locals.newAccessToken;
+        }
+        return res.status(200).json(responseForClient);
 
     } catch (error) {
         if (isPostgresError(error)) {
@@ -311,11 +342,8 @@ router.get('/item-details-for-edit', async (req:Request, res:Response) => {
     }
 });
 
-router.post('/search-items', check('searchTerm').isAlpha().trim().escape(), async(req:Request, res:Response) => {
-    const searchTerm = req.body;
-});
-
 router.post('/edit-item', upload.array('images'), async (req:Request, res:Response) => {
+    if (!req.user) return res.status(403).json('unauthorized');
     try {
         let imagesForItem: Express.Multer.File[] = req.files as Express.Multer.File[];
         const itemData: ItemFromClient = req.body;
@@ -334,12 +362,12 @@ router.post('/edit-item', upload.array('images'), async (req:Request, res:Respon
 
         // update the item's pictures
         await Promise.all([
-            FileSystemFunctions.saveItemImages(imagesForItem[0], "dee", itemForDB.name),
-            FileSystemFunctions.saveItemImages(imagesForItem[1], "dee", itemForDB.name),
-            FileSystemFunctions.saveItemImages(imagesForItem[2], "dee", itemForDB.name)
+            FileSystemFunctions.saveItemImages(imagesForItem[0], req.user.username, itemForDB.name),
+            FileSystemFunctions.saveItemImages(imagesForItem[1], req.user.username, itemForDB.name),
+            FileSystemFunctions.saveItemImages(imagesForItem[2], req.user.username, itemForDB.name)
         ]);
 
-        const imageFilePaths: string[] = await FileSystemFunctions.getImagesFilePathForItem("dee", itemForDB.name);
+        const imageFilePaths: string[] = await FileSystemFunctions.getImagesFilePathForItem(req.user.username, itemForDB.name);
         itemForDB.image1 = imageFilePaths[0];
         itemForDB.image2 = imageFilePaths[1];
         itemForDB.image3 = imageFilePaths[2];
@@ -349,9 +377,13 @@ router.post('/edit-item', upload.array('images'), async (req:Request, res:Respon
 
         // now update the item's categories in the item_categories table
         const categoriesInserted = await itemOps.postItemCategories(itemForDB.id!, categoryIds);
+        const responseForClient = {data:'ok', error:[]} as ResponseForClient<string>;
+        if (res.locals.newAccessToken) {
+            responseForClient.newToken = res.locals.newAccessToken;
+        }
 
         // if all is okay, send the OK
-        return res.status(201).json('ok')        
+        return res.status(201).json(responseForClient);    
     } catch (error) {
         console.log(error);
         if (isPostgresError(error)) {
@@ -361,16 +393,6 @@ router.post('/edit-item', upload.array('images'), async (req:Request, res:Respon
         }
         return res.status(500).json('error');
     }
-})
-
-router.post('/image-practice', upload.array('images'), async (req: Request, res: Response) => {
-    // await FileSystemFunctions.deleteItemImages();
-    // let files = await FileSystemFunctions.loadItemImages('admin', 'Asians\r\n');
-    const imageFilePaths: string[] = await FileSystemFunctions.getImagesFilePathForItem('admin', 'Test Plant');
-    console.log(imageFilePaths);
-    console.log(process.cwd());
-    res.contentType('image/jpg');
-    return res.status(200).json('ok');
-})
+});
 
 export default router;

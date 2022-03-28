@@ -9,6 +9,7 @@ import {createHash, Hash} from 'crypto';
 import { groupBy } from "../utils/utils.js";
 import { FileSystemFunctions } from "../utils/fileSystem.js";
 import multer from "multer";
+import { authenticateJWT } from "../security/tokens/tokens.js";
 let router = express.Router();
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
@@ -108,16 +109,21 @@ router.post(
     }
 );
 
-router.post('/change-address', async (req:Request, res:Response) => {
+router.post('/change-address', authenticateJWT, async (req:Request, res:Response) => {
+    if (!req.user) return res.status(403).json('unauthorized');
+
     // grab the user's new data
     const { newAddress, newCity, newZip, newState, newGeolocation } = req.body;
     const newFullAddress = `${newAddress as string} ${newCity as string} ${newState as string}`;
-    // const user = req.user?.accountId;
 
     try {
         // update the database with the new info
-        await userOps.updateUserAddress(newFullAddress, newZip as number, newGeolocation as string, 16);
-        return res.status(204).json('data updated');
+        await userOps.updateUserAddress(newFullAddress, newZip as number, newGeolocation as string, req.user.accountId);
+        const responseForClient:ResponseForClient<string> = {data:'data updated', error:[]};
+        if (res.locals.newAccessToken) {
+            responseForClient.newToken = res.locals.newAccessToken;
+        }
+        return res.status(204).json(responseForClient);
     } catch (error) {
         if (isPostgresError(error)) {
             userLogger.error(`Tried to update user ${req.user?.accountId}'s address info: ${error.code} ${error.detail}`);
@@ -128,7 +134,7 @@ router.post('/change-address', async (req:Request, res:Response) => {
     }
 });
 
-router.get('/items', async (req:Request, res:Response) => {
+router.get('/items', authenticateJWT, async (req:Request, res:Response) => {
     const accountId = req.query.accountId;
     if (!accountId) return res.status(500).json('no account id provided');
     // I will grab the user's avatar from the front end and I'll 
@@ -158,7 +164,9 @@ router.get('/items', async (req:Request, res:Response) => {
             finalItemArray.push(item);
         }
         const responseForClient = { data: finalItemArray, error: [] } as ResponseForClient<ItemDataForClient[]>;
-        
+        if (res.locals.newAccessToken) {
+            responseForClient.newToken = res.locals.newAccessToken;
+        }
         return res.status(200).json(responseForClient);
     } catch (err) {
         if (isPostgresError(err)) {
@@ -169,16 +177,19 @@ router.get('/items', async (req:Request, res:Response) => {
 
 });
 
-router.get('/address-details',async (req:Request, res:Response) => {
+router.get('/address-details', authenticateJWT, async (req:Request, res:Response) => {
     // get the account id from the request
     const accountid = req.query.accountId as string;
     // grab the user's address details from the database
     const addressInfo: {address:string, zipcode:number} = (await userOps.getAddressInfo(accountid)).rows[0];
-    
-    return res.status(200).json(addressInfo);
+    const responseForClient = {data:addressInfo, error:[]} as ResponseForClient<{address:string, zipcode:number}>;
+    if (res.locals.newAccessToken) {
+        responseForClient.newToken = res.locals.newAccessToken;
+    }
+    return res.status(200).json(responseForClient);
 });
 
-router.get('/user-items',async (req:Request, res:Response) => {
+router.get('/user-items', authenticateJWT, async (req:Request, res:Response) => {
     // grab the account id from the request query
     const accountId = req.query.accountId as string;
     // req.user?.accountId use this one in prod
@@ -186,7 +197,11 @@ router.get('/user-items',async (req:Request, res:Response) => {
     try {
         // query the items table for any items owned by this user
         const itemsUnderAccount: ItemNameAndId[] = (await userOps.itemsOwnedByAccountId(accountId)).rows;
-        return res.status(200).json(itemsUnderAccount);
+        const responseForClient = {data:itemsUnderAccount, error:[]} as ResponseForClient<ItemNameAndId[]>;
+        if (res.locals.newAccessToken) {
+            responseForClient.newToken = res.locals.newAccessToken;
+        }
+        return res.status(200).json(responseForClient);
     } catch (error) {
         if (isPostgresError(error)) {
             userLogger.error(`Tried to fetch items for user 17: ${error.code} ${error.detail}`);

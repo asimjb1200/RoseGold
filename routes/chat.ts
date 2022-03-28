@@ -44,6 +44,9 @@ router.get('/chat-history', async (req:Request, res:Response) => {
         }, {});
 
         const dataForClient: ResponseForClient<GroupedChats> = {data: convoHolder, error: []};
+        if (res.locals.newAccessToken) {
+            dataForClient.newToken = res.locals.newAccessToken;
+        }
         return res.status(200).json(dataForClient);
     } catch (error) {
         if (isPostgresError(error)) {
@@ -55,24 +58,5 @@ router.get('/chat-history', async (req:Request, res:Response) => {
         }
     }
 });
-
-router.get('/test-socket', async (req:Request, res:Response) => {
-    let chatData = await chatOps.addMsg(
-        {id: "40b4059a-c093-4004-a74d-ba018f5e854c", senderid: 15, recid: 16, 
-        message: "Hey admin, testing out your push notis", timestamp: new Date().toISOString()}
-    );
-    
-    // grab the username of the sender and receiver and attach it to the chat object
-    const senderUsername = await userOps.getUsername(chatData.senderid);
-    const receiverUsername = await userOps.getUsername(chatData.recid);
-    const chatForClient:ChatWithUsername = {
-        id: chatData.id!, message: chatData.message, senderUsername, 
-        receiverUsername, senderid:chatData.senderid, recid:chatData.recid, 
-        timestamp:chatData.timestamp
-    }
-    
-    socketIO.emitEvent<ChatWithUsername>(16, ChatEvents.PrivateMessage, chatForClient);
-    return res.status(201).json('good');
-})
 
 export default router;
