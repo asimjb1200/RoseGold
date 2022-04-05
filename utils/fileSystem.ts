@@ -51,7 +51,8 @@ export namespace FileSystemFunctions {
     }
 
     /** save the user's avatar image into the avatar directory.
-     * @param filename - the file to save. the name of the file should be the user's username
+     * @param filename - the file to save. the name of the file should be the user's username. 
+     * This method will overwrite the file if it already exists.
      */
     export async function saveAvatarImage(data: Express.Multer.File) {
         const path = `${__dirname}/images/avatars/${data.originalname}`;

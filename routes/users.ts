@@ -134,6 +134,23 @@ router.post('/change-address', authenticateJWT, async (req:Request, res:Response
     }
 });
 
+router.post('/change-avatar', [authenticateJWT, upload.single("avatar")],async (req:Request, res:Response) => {
+    if (!req.user) return res.status(403).json('unauthorized');
+    try {
+        let avatarImage = req.file as Express.Multer.File;
+        // save the user's avatar image
+        await FileSystemFunctions.saveAvatarImage(avatarImage);
+        const responseForClient:ResponseForClient<boolean> = {data:true, error:[]}
+        if (res.locals.newAccessToken) {
+            responseForClient.newToken = res.locals.newAccessToken;
+        }
+        return res.status(200).json(responseForClient);
+    } catch (error) {
+        userLogger.error(`error occurred when trying to replace ${req.user?.username}'s avatar: ${error}`);
+        return res.status(500).json('error occurred');
+    }
+})
+
 router.get('/items', authenticateJWT, async (req:Request, res:Response) => {
     const accountId = req.query.accountId;
     if (!accountId) return res.status(500).json('no account id provided');
