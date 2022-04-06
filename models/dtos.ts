@@ -1,4 +1,4 @@
-import { Chat, Item } from "./databaseObjects.js";
+import { Item } from "./databaseObjects.js";
 
 export type TempUser = {
     email: string; 

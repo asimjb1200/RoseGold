@@ -3,7 +3,7 @@ import { Socket, Server as SocketServer } from "socket.io";
 import { chatOps, userOps } from "../database/databaseOperations.js";
 import { chatLogger } from "../loggers/logger.js";
 import { Chat, ChatEvents, isPostgresError } from "../models/databaseObjects.js";
-import { ChatWithUsername, PrivateMessage, SocketMsgForClient } from "../models/dtos";
+import { ChatWithUsername, SocketMsgForClient } from "../models/dtos";
 
 export class SocketSetup {
     socketIo: SocketServer;

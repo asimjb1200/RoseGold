@@ -1,6 +1,6 @@
 import express from "express";
 import { Request, Response } from "express";
-import {body, check, Result, validationResult} from "express-validator";
+import { check, validationResult} from "express-validator";
 import { itemOps, userOps } from "../database/databaseOperations.js";
 import { userLogger } from "../loggers/logger.js";
 import { Account, isPostgresError, Item } from "../models/databaseObjects.js";

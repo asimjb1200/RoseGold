@@ -1,9 +1,7 @@
 import express, { Request, Response } from 'express';
-import { socketIO } from '../bin/www.js';
-//import { socketIO } from '../bin/www.js';
-import { chatOps, userOps } from '../database/databaseOperations.js';
+import { chatOps } from '../database/databaseOperations.js';
 import { chatLogger } from '../loggers/logger.js';
-import { Chat, ChatEvents, isPostgresError } from '../models/databaseObjects.js';
+import { isPostgresError } from '../models/databaseObjects.js';
 import { GroupedChats, ChatWithUsername, ResponseForClient } from '../models/dtos.js';
 
 let router = express.Router();
