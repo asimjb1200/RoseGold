@@ -78,8 +78,9 @@ class UserDataOperations {
         return username;
     }
 
-    async deleteUser(username: string) {
-
+    async deleteUser(accountId: number) {
+        const sql = 'DELETE FROM accounts WHERE accountid=$1';
+        return this.db.connection.query(sql, [accountId]);
     }
 
     /** search the db for the user's creds. If found, this will generate access and refresh tokens for the user. The refresh token will

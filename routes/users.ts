@@ -230,4 +230,21 @@ router.get('/user-items', authenticateJWT, async (req:Request, res:Response) => 
     }
 });
 
+router.delete('/delete-user', authenticateJWT, async (req:Request, res:Response) => {
+    if (!req.user) return res.status(403).json('unauthorized');
+    try {
+        await userOps.deleteUser(req.user.accountId);
+        userLogger.info(`user deleted account: ${req.user.username}`);
+        return res.status(200).json();
+    } catch (error) {
+        if (isPostgresError(error)) {
+            userLogger.error(`Problem occurred when trying to delete ${req.user.username}.\n${error.code} ${error}`);
+        } else {
+            userLogger.error(`Problem occrred when trying to delete ${req.user.username}.\n${error}`);
+        }
+
+        return res.status(500).json()
+    }
+});
+
 export default router;
