@@ -66,45 +66,45 @@ router.post('/add-items', upload.array('images'), async (req: Request, res: Resp
     }
 });
 
-router.post(
-    '/update-items',
-    [
-        check('item').notEmpty()
-    ],
-    async (req: Request, res: Response) => {
-        const validationErrors = validationResult(req);
-        if (!validationErrors.isEmpty()) {
-            return res.status(422).json({ errors: validationErrors.array() });
-        }
-        // make sure someone isn't trying to update an item that they don't own
-        if (req.user && req.user.accountId == req.body.item.accountid) {
-            const item: Item = req.body.item;
+// router.post(
+//     '/update-items',
+//     [
+//         check('item').notEmpty()
+//     ],
+//     async (req: Request, res: Response) => {
+//         const validationErrors = validationResult(req);
+//         if (!validationErrors.isEmpty()) {
+//             return res.status(422).json({ errors: validationErrors.array() });
+//         }
+//         // make sure someone isn't trying to update an item that they don't own
+//         if (req.user && req.user.accountId == req.body.item.accountid) {
+//             const item: Item = req.body.item;
 
-            try {
-                const itemUpdated = await itemOps.updateItem(item);
-                const responseForClient = { data: itemUpdated, error: ["Problem with database"] } as ResponseForClient<boolean>;
-                if (res.locals.newAccessToken) {
-                    responseForClient.newToken = res.locals.newAccessToken;
-                }
-                return res.status(200).json(responseForClient);
-            } catch (error) {
-                if (isPostgresError(error)) {
-                    itemLogger.error(`Tried to update item ${item.id}. Code ${error.code} Detail: ${error.detail}`);
-                    const responseForClient = { data: [], error: ["Problem with database"] } as ResponseForClient<any>;
-                    return res.status(503).json(responseForClient);
-                } else {
-                    itemLogger.error(`Tried to update item ${item.id}. Detail: ${error}`);
-                    const responseForClient = { data: [], error: ["Server issue"] } as ResponseForClient<any>;
-                    return res.status(503).json(responseForClient);
-                }
-            }
-        } else {
-            itemLogger.info(`${req.user?.username} at ${req.ip} tried to update an item (${req.body.item.accountid}) that they don't own. `);
-            const responseForClient = { data: [], error: ["You don't own that item."] } as ResponseForClient<any>;
-            return res.status(401).json(responseForClient);
-        }
-    }
-);
+//             try {
+//                 const itemUpdated = await itemOps.updateItem(item);
+//                 const responseForClient = { data: itemUpdated, error: ["Problem with database"] } as ResponseForClient<boolean>;
+//                 if (res.locals.newAccessToken) {
+//                     responseForClient.newToken = res.locals.newAccessToken;
+//                 }
+//                 return res.status(200).json(responseForClient);
+//             } catch (error) {
+//                 if (isPostgresError(error)) {
+//                     itemLogger.error(`Tried to update item ${item.id}. Code ${error.code} Detail: ${error.detail}`);
+//                     const responseForClient = { data: [], error: ["Problem with database"] } as ResponseForClient<any>;
+//                     return res.status(503).json(responseForClient);
+//                 } else {
+//                     itemLogger.error(`Tried to update item ${item.id}. Detail: ${error}`);
+//                     const responseForClient = { data: [], error: ["Server issue"] } as ResponseForClient<any>;
+//                     return res.status(503).json(responseForClient);
+//                 }
+//             }
+//         } else {
+//             itemLogger.info(`${req.user?.username} at ${req.ip} tried to update an item (${req.body.item.accountid}) that they don't own. `);
+//             const responseForClient = { data: [], error: ["You don't own that item."] } as ResponseForClient<any>;
+//             return res.status(401).json(responseForClient);
+//         }
+//     }
+// );
 
 router.post('/delete-items', check('deleteTheseIds').isArray().notEmpty(), async (req: Request, res: Response) => {
     const validationErrors = validationResult(req);
