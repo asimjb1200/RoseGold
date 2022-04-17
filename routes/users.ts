@@ -247,4 +247,32 @@ router.delete('/delete-user', authenticateJWT, async (req:Request, res:Response)
     }
 });
 
+router.get('/user-geolocation', authenticateJWT, async (req:Request, res:Response) => {
+    if (!req.user) return res.status(403).json('not authorized');
+
+    try {
+        // grab the user's geolocation from the database
+        const geolocation:{x:number, y:number} = (await userOps.getUserGeolocation(req.user.accountId)).rows[0].geolocation;
+
+        const geolocationString:string = `(${geolocation.x},${geolocation.y})`;
+        console.log({geolocationString});
+        const dataForClient:ResponseForClient<string> = {data:geolocationString, error:[]};
+
+        if (res.locals.newAccessToken) {
+            dataForClient.newToken = res.locals.newAccessToken;
+        }
+
+        
+
+        return res.status(200).json(dataForClient);
+    } catch (error) {
+        if (isPostgresError(error)) {
+            userLogger.error(`tried to get user ${req.user.accountId}'s geolocation: ${error.code} ${error.detail}`);
+        } else {
+            userLogger.error(`tried to get user ${req.user.accountId}'s geolocation: ${error}`);
+        }
+        return res.status(500).json('error occurred');
+    }
+});
+
 export default router;

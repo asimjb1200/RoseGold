@@ -64,6 +64,11 @@ class UserDataOperations {
         return this.db.connection.query(sql, [accountId]);''
     }
 
+    async getUserGeolocation(accountid:number) {
+        const sql = 'select geolocation from accounts where accountid=$1';
+        return this.db.connection.query(sql, [accountid]);
+    }
+
     async getAddressInfo(accountId:string) {
         const sql = `
             select address, zipcode from accounts where accountid=$1
