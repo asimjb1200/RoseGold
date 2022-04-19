@@ -32,7 +32,7 @@ router.post(
             accounttype: 1,
             email: rawUser.email.trim(),
             refreshtoken: '',
-            avatarurl: `/Users/asimbrown/Desktop/Dev/Projects/RoseGold/build/images/avatars/${avatarImage.originalname}`,
+            avatarurl: `/images/avatars/${avatarImage.originalname}`,
             geolocation: rawUser.geolocation.trim()
         };
 

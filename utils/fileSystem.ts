@@ -44,11 +44,6 @@ export namespace FileSystemFunctions {
         fs.rm(path, {recursive:true, force:true}, () => {userLogger.info(`deleted photos for ${username}'s ${itemName} item`)});
     }
 
-    /** creates a directory for the user's avatar image. strips the name in case of line breaking chars */
-    export async function createAvatarDirForUser(username:string) {
-        const strippedName = username.trim();
-        return fsPromises.mkdir(`${__dirname}/images/avatars/${strippedName}`, {recursive: true});
-    }
 
     /** save the user's avatar image into the avatar directory.
      * @param filename - the file to save. the name of the file should be the user's username. 
@@ -56,6 +51,11 @@ export namespace FileSystemFunctions {
      */
     export async function saveAvatarImage(data: Express.Multer.File) {
         const path = `${__dirname}/images/avatars/${data.originalname}`;
-        return fsPromises.writeFile(path, data.buffer);
+        if (fs.existsSync(`${__dirname}/images/avatars`)) {
+            return fsPromises.writeFile(path, data.buffer);
+        } else {
+            await fsPromises.mkdir(`${__dirname}/images/avatars`, {recursive: true});
+            return fsPromises.writeFile(path, data.buffer);
+        }
     }
 }
