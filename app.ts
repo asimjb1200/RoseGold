@@ -26,8 +26,8 @@ app.use(express.urlencoded({
   extended: true,
   limit: '100mb'
 }));
-app.use('/images', express.static(pathToImagesFolder)); // serve images from the static folder
-app.use('/users', userRouter);
-app.use('/item-handler', authenticateJWT, itemRouter);
-app.use('/chat-handler', authenticateJWT, chatRouter);
+app.use('/api/images', express.static(pathToImagesFolder)); // serve images from the static folder
+app.use('/api/users', userRouter);
+app.use('/api/item-handler', authenticateJWT, itemRouter);
+app.use('/api/chat-handler', authenticateJWT, chatRouter);
 export default app;
