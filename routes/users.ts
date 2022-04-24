@@ -18,30 +18,33 @@ router.post(
     '/register-user',
     upload.single("avatar")
     ,async (req: Request, res: Response) => {
-        let avatarImage = req.file as Express.Multer.File;
-        const rawUser: TempUser = req.body;
-
-        // save the user's avatar image
-        await FileSystemFunctions.saveAvatarImage(avatarImage);
-        const dbUser: Account = {
-            username: rawUser.username.trim(),
-            userrating: 0,
-            password: rawUser.password.trim(),
-            address: `${rawUser.address.trim()} ${rawUser.city.trim()} ${rawUser.state.trim()}`,
-            zipcode: +rawUser.zipcode.trim(),
-            accounttype: 1,
-            email: rawUser.email.trim(),
-            refreshtoken: '',
-            avatarurl: `/images/avatars/${avatarImage.originalname}`,
-            geolocation: rawUser.geolocation.trim()
-        };
-
-        // hash the user's password. crypto module uses utf8 encoding by default
-        const hashObj: Hash = createHash('sha256');
-        hashObj.update(dbUser.password);
-        dbUser.password = hashObj.digest('hex');
-
         try {
+            let avatarImage = req.file as Express.Multer.File;
+            if (avatarImage.mimetype !== 'image/jpg' && avatarImage.mimetype !== 'image/jpeg') {
+                throw new Error('Only jpg images are allowed');
+            }
+
+            const rawUser: TempUser = req.body;
+    
+            // save the user's avatar image
+            await FileSystemFunctions.saveAvatarImage(avatarImage);
+            const dbUser: Account = {
+                username: rawUser.username.trim(),
+                userrating: 0,
+                password: rawUser.password.trim(),
+                address: `${rawUser.address.trim()} ${rawUser.city.trim()} ${rawUser.state.trim()}`,
+                zipcode: +rawUser.zipcode.trim(),
+                accounttype: 1,
+                email: rawUser.email.trim(),
+                refreshtoken: '',
+                avatarurl: `/images/avatars/${avatarImage.originalname}`,
+                geolocation: rawUser.geolocation.trim()
+            };
+    
+            // hash the user's password. crypto module uses utf8 encoding by default
+            const hashObj: Hash = createHash('sha256');
+            hashObj.update(dbUser.password);
+            dbUser.password = hashObj.digest('hex');
             let userInserted = await userOps.addNewUser(dbUser);
             userLogger.info(`New user created: ${dbUser.username}`);
             return res.status(200).json({msg: 'user created'});
@@ -138,6 +141,10 @@ router.post('/change-avatar', [authenticateJWT, upload.single("avatar")],async (
     if (!req.user) return res.status(403).json('unauthorized');
     try {
         let avatarImage = req.file as Express.Multer.File;
+        if (avatarImage.mimetype !== 'image/jpg' && avatarImage.mimetype !== 'image/jpeg') {
+            throw new Error('Only jpg images are allowed');
+        }
+        
         // save the user's avatar image
         await FileSystemFunctions.saveAvatarImage(avatarImage);
         const responseForClient:ResponseForClient<boolean> = {data:true, error:[]}
