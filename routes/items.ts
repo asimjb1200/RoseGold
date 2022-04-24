@@ -17,22 +17,29 @@ router.post('/add-items', upload.array('images'), async (req: Request, res: Resp
     if (!req.user) return res.status(403).json('unauthorized');
 
     let imagesForItem: Express.Multer.File[] = req.files as Express.Multer.File[];
-
-    const itemData: ItemFromClient = req.body;
-    const categoryIds: number[] = JSON.parse(itemData.categoryIds.trim());
-
-    // remove line breaks from all elements
-    const itemForDB: Item = {
-        accountid: Number(itemData.accountid.trim()),
-        name: itemData.name.trim(),
-        description: itemData.description.trim(),
-        dateposted: itemData.dateposted.trim(),
-        pickedup: (String(true) == itemData.pickedup.trim()),
-        isavailable: (String(true) == itemData.isavailable.trim()),
-        zipcode: Number(itemData.zipcode.trim())
-    };
-
+    
     try {
+        for (let x = 0; x < imagesForItem.length; x++) {
+            let currentElement:Express.Multer.File = imagesForItem[x];
+            if (currentElement.mimetype !== 'image/jpg' && currentElement.mimetype !== 'image/jpeg') {
+                throw new Error('Only jpg images are allowed');
+            }
+        }
+
+        const itemData: ItemFromClient = req.body;
+        const categoryIds: number[] = JSON.parse(itemData.categoryIds.trim());
+
+        // remove line breaks from all elements
+        const itemForDB: Item = {
+            accountid: Number(itemData.accountid.trim()),
+            name: itemData.name.trim(),
+            description: itemData.description.trim(),
+            dateposted: itemData.dateposted.trim(),
+            pickedup: (String(true) == itemData.pickedup.trim()),
+            isavailable: (String(true) == itemData.isavailable.trim()),
+            zipcode: Number(itemData.zipcode.trim())
+        };
+
         await FileSystemFunctions.createDirForUser(req.user.username, itemData.name);
         await Promise.all([
             FileSystemFunctions.saveItemImages(imagesForItem[0], req.user.username, itemForDB.name),
@@ -263,6 +270,14 @@ router.post('/edit-item', upload.array('images'), async (req:Request, res:Respon
     if (!req.user) return res.status(403).json('unauthorized');
     try {
         let imagesForItem: Express.Multer.File[] = req.files as Express.Multer.File[];
+
+        for (let x = 0; x < imagesForItem.length; x++) {
+            let currentElement:Express.Multer.File = imagesForItem[x];
+            if (currentElement.mimetype !== 'image/jpg' && currentElement.mimetype !== 'image/jpeg') {
+                throw new Error('Only jpg images are allowed');
+            }
+        }
+        
         const itemData: ItemFromClient = req.body;
         const categoryIds: number[] = JSON.parse(itemData.categoryIds.trim());
         
