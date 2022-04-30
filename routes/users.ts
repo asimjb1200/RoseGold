@@ -241,6 +241,11 @@ router.delete('/delete-user', authenticateJWT, async (req:Request, res:Response)
     if (!req.user) return res.status(403).json('unauthorized');
     try {
         await userOps.deleteUser(req.user.accountId);
+
+        // now delete the user's images
+        await FileSystemFunctions.deleteUserAvatar(req.user.username);
+        await FileSystemFunctions.deleteUserItemsDir(req.user.username);
+
         userLogger.info(`user deleted account: ${req.user.username}`);
         return res.status(200).json();
     } catch (error) {
