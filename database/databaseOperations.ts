@@ -37,10 +37,11 @@ class UserDataOperations {
             INSERT INTO accounts 
                 (
                     username, accounttype, email, password,
-                    avatarurl, userrating, address, zipcode, refreshtoken, geolocation
+                    avatarurl, userrating, address, zipcode, refreshtoken, geolocation,
+                    firstname, lastname
                 )
             VALUES
-                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             RETURNING *
         `;
         const newUser = (
@@ -48,7 +49,8 @@ class UserDataOperations {
                                 sql, 
                                 [
                                     acct.username, acct.accounttype, acct.email, acct.password,
-                                    acct.avatarurl, acct.userrating, acct.address, acct.zipcode, acct.refreshtoken, acct.geolocation
+                                    acct.avatarurl, acct.userrating, acct.address, acct.zipcode, acct.refreshtoken, acct.geolocation,
+                                    acct.firstname, acct.lastname
                                 ]
                             )
                         );

@@ -29,6 +29,8 @@ export type Category = {
 
 export type Account = {
     accountid?: number;
+    firstname: string;
+    lastname: string;
     username: string;
     accounttype: number;
     email: string;

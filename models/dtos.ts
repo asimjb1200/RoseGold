@@ -1,6 +1,8 @@
 import { Item } from "./databaseObjects.js";
 
 export type TempUser = {
+    firstName: string;
+    lastName: string;
     email: string; 
     username: string; 
     password: string; 

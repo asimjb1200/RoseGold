@@ -30,6 +30,8 @@ router.post(
             await FileSystemFunctions.saveAvatarImage(avatarImage);
             const dbUser: Account = {
                 username: rawUser.username.trim(),
+                firstname: rawUser.firstName.trim(),
+                lastname: rawUser.lastName.trim(),
                 userrating: 0,
                 password: rawUser.password.trim(),
                 address: `${rawUser.address.trim()} ${rawUser.city.trim()} ${rawUser.state.trim()}`,
