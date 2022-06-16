@@ -10,6 +10,7 @@ import { groupBy } from "../utils/utils.js";
 import { FileSystemFunctions } from "../utils/fileSystem.js";
 import multer from "multer";
 import { authenticateJWT } from "../security/tokens/tokens.js";
+import { emailHandler } from "../emails/EmailHandler.js";
 let router = express.Router();
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
@@ -49,6 +50,10 @@ router.post(
             dbUser.password = hashObj.digest('hex');
             let userInserted = await userOps.addNewUser(dbUser);
             userLogger.info(`New user created: ${dbUser.username}`);
+
+            // email the user and inform them of their success
+            const emailText = "Congratulations, your account was successfully created. You can now login to the market to view all of the available plants in your area."
+            const emailSent = await emailHandler.emailUser(dbUser.email, "Welcome to RoseGold Market", emailText);
             return res.status(200).json({msg: 'user created'});
         } catch (error: any) {
             if (isPostgresError(error)) {
@@ -66,6 +71,11 @@ router.post(
         }
     }
 );
+
+// router.get('/test-email', async (req:Request, res:Response) => {
+//     let testEmail = await emailHandler.emailUser("asimjbrown@gmail.com", "test email", "making sure that the email functionality works as expected");
+//     return res.status(200).json('email sent');
+// });
 
 router.post(
     '/login',
@@ -249,6 +259,7 @@ router.delete('/delete-user', authenticateJWT, async (req:Request, res:Response)
         await FileSystemFunctions.deleteUserItemsDir(req.user.username);
 
         userLogger.info(`user deleted account: ${req.user.username}`);
+        // let emailConf = await emailHa
         return res.status(200).json();
     } catch (error) {
         if (isPostgresError(error)) {
