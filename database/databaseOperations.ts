@@ -1,6 +1,6 @@
 import pg, {Pool, QueryResult} from 'pg';
 import dotenv from 'dotenv';
-import { Account, Chat, Favorite, Item, PostgresError } from '../models/databaseObjects.js';
+import { Account, Chat, Favorite, Item, PasswordRecorvery, PostgresError } from '../models/databaseObjects.js';
 import { generateTokens } from '../security/tokens/tokens.js';
 import { ChatWithUsername, FilteredItemResult, ItemDataForClient, LoginOperationResponse } from '../models/dtos.js';
 import { buildParamList } from '../utils/utils.js';
@@ -58,12 +58,44 @@ class UserDataOperations {
         return (newUser.rowCount ? true : false);
     }
 
+    /** use this method for forgot password route. this will ensure that the
+     * email address passed in by the user is actually associated with the username 
+     * that is sent over
+     */
+    getEmailByUsername(username: string): Promise<pg.QueryResult<{email: string}>> {
+        const sql = "SELECT email FROM accounts WHERE username=$1";
+        return this.db.connection.query(sql, [username]);
+    }
+
+    /** use this method for inserting data into the password recovery table */
+    insertUserIntoPWRecovery(username:string, securityCode:string) {
+        const sql = "INSERT INTO password_recovery (username, security_code, created) VALUES ($1, $2, now())";
+        return this.db.connection.query(sql, [username, securityCode]);
+    }
+
+    /** use after you've provided a user their security code for their password reset. this will then remove them from the password recovery table */
+    deleteFromPWRecovery(username: string) {
+        const sql = "DELETE FROM password_recovery WHERE username=$1";
+        return this.db.connection.query(sql, [username]);
+    }
+
+    findUserBySecurityCode(securityCode:string): Promise<pg.QueryResult<PasswordRecorvery>> {
+        const sql = 'SELECT * FROM password_recovery WHERE security_code=$1';
+        return this.db.connection.query(sql, [securityCode]);
+    }
+
+    /** update the user's password in the database */
+    updateUserPassword(username:string, newPassword:string) {
+        const sql = 'UPDATE accounts SET password=$1 WHERE username=$2';
+        return this.db.connection.query(sql, [newPassword, username]);
+    }
+
     /** used when a user wants to see all of the items that they have listed. Returns an array of item names and ids. Intended to be used in a list view on the client.
      * @param accountId - the owner of the items to be returned
      */
     async itemsOwnedByAccountId(accountId:string) {
         const sql = "select id, name from items where accountid=$1";
-        return this.db.connection.query(sql, [accountId]);''
+        return this.db.connection.query(sql, [accountId]);
     }
 
     async getUserGeolocation(accountid:number) {
