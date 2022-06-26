@@ -169,6 +169,8 @@ router.post('/forgot-password-step-one', async (req:Request, res:Response) => {
 router.post('/forgot-password-reset', async (req:Request, res:Response) => {
     const {securityCode, newPassword} = req.body;
 
+    if (!securityCode) return res.status(404);
+    
     try {
         // look up the security code in the database
         const user = (await userOps.findUserBySecurityCode(securityCode as string)).rows[0];
