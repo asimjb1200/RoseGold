@@ -11,6 +11,8 @@ import { FileSystemFunctions } from "../utils/fileSystem.js";
 import multer from "multer";
 import { authenticateJWT } from "../security/tokens/tokens.js";
 import { emailHandler } from "../emails/EmailHandler.js";
+import { generateRandomCode } from "../security/encryption/codeGenerator.js";
+import { hashMe } from "../security/hashing/hashStuff.js";
 let router = express.Router();
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
@@ -45,9 +47,9 @@ router.post(
             };
     
             // hash the user's password. crypto module uses utf8 encoding by default
-            const hashObj: Hash = createHash('sha256');
-            hashObj.update(dbUser.password);
-            dbUser.password = hashObj.digest('hex');
+            // const hashObj: Hash = createHash('sha256');
+            // hashObj.update(dbUser.password);
+            dbUser.password = hashMe(dbUser.password);
             let userInserted = await userOps.addNewUser(dbUser);
             userLogger.info(`New user created: ${dbUser.username}`);
 
@@ -90,9 +92,9 @@ router.post(
         }
         const {username, password} = req.body;
         // hash the pw before checking the db
-        const hashObj: Hash = createHash('sha256');
-        hashObj.update(password);
-        let pwHash: string = hashObj.digest('hex');
+        // const hashObj: Hash = createHash('sha256');
+        // hashObj.update(password);
+        const pwHash: string = hashMe(password);
 
         try {
             let loginStatus: LoginOperationResponse = await userOps.logUserIn(username, pwHash);
@@ -123,6 +125,87 @@ router.post(
         }
     }
 );
+
+router.post('/forgot-password-step-one', async (req:Request, res:Response) => {
+    // extract the user's username and email from the body
+    const {username, emailAddress} = req.body;
+    
+    try {
+        // make sure that username matches that email address
+        const emailInDb:string = (await userOps.getEmailByUsername(username as string)).rows[0].email;
+        if (emailInDb === emailAddress as string) {
+            // generate a 3 byte (6 digit with hex) random code from the returned buffer
+            const randomData:string =  (await generateRandomCode(3)).toString('hex');
+
+            // store it in the temp pw database
+            const userInserted = await userOps.insertUserIntoPWRecovery(username, randomData);
+            
+            // email it to the user
+            const text = `Enter the following code into the app to continue with the password reset process. This code is only valid for <em>10 minutes.</em><br/><br/><strong>${randomData}</strong>`;
+            const sendEmail = await emailHandler.emailUser(emailAddress, "Password Reset Process - RoseGoldMarket", text);
+            userLogger.info(`Began the password reset process for user ${username}`);
+
+            const responseForClient:ResponseForClient<string> = {data: randomData, error: [], newToken: ''};
+            // now return the code to the app so that it knows what the correct code is
+            return res.status(200).json(responseForClient);
+        } else {
+            const responseForClient:ResponseForClient<string> = {data: '', error: ['Could not find that account information in our servers.'], newToken:''};
+            // now return the code to the app so that it knows what the correct code is
+            return res.status(404).json(responseForClient);
+        }
+    } catch (error) {
+        if (isPostgresError(error)) {
+            userLogger.error(`tried fetching user email from database: ${error}`);
+            const responseForClient:ResponseForClient<string> = {data:'', error: ['There was a problem fetching your info from the database. Try again later.'], newToken: ''};
+            return res.status(500).json(responseForClient);
+        } else {
+            userLogger.error(`there was a problem on our end: ${error}`);
+            const responseForClient:ResponseForClient<string> = {data:'', error: ['There was a problem on our end. Try again later.'], newToken: ''};
+            return res.status(500).json(responseForClient);
+        }
+    }
+});
+
+router.post('/forgot-password-reset', async (req:Request, res:Response) => {
+    const {securityCode, newPassword} = req.body;
+
+    try {
+        // look up the security code in the database
+        const user = (await userOps.findUserBySecurityCode(securityCode as string)).rows[0];
+
+        if (user.username) {
+            // hash their new password
+            const pwHash: string = hashMe(newPassword);
+
+            // now insert it into the database
+            const userUpdated = await userOps.updateUserPassword(user.username, pwHash);
+            userLogger.info(`user ${user.username} has updated their password.`);
+
+            // now delete the user out of the temp database
+            const userRemoved = await userOps.deleteFromPWRecovery(user.username);
+
+            if (userRemoved.rowCount) {
+                userLogger.info(`removed ${user.username} from the password recovery table`);
+            }
+
+            // email the user that their password has changed
+            const emailResultObj = (await userOps.getEmailByUsername(user.username)).rows[0];
+            const text = "Your RoseGold Market account password has been updated in our system. If you didn't make this change please contact us immediately.";
+            const emailSent = await emailHandler.emailUser(emailResultObj.email, "Password Updated", text);
+
+            return res.status(200).json('good');
+        } else {
+            return res.status(404).json('not found');
+        }
+    } catch (error) {
+        if (isPostgresError(error)) {
+            userLogger.error(`Tried to find a user for the code ${securityCode}. Error ${error.code}: ${error.detail}`);
+        } else {
+            userLogger.error(`Tried to find a user for the code ${securityCode}. Error: ${error}`);
+        }
+        return res.status(500);
+    }
+});
 
 router.post('/change-address', authenticateJWT, async (req:Request, res:Response) => {
     if (!req.user) return res.status(403).json('unauthorized');
