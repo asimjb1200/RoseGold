@@ -49,7 +49,13 @@ export type Chat = {
     recid: number;
     message: string;
     timestamp: string;
-}
+};
+
+export type PasswordRecorvery = {
+    username: string;
+    security_code: string;
+    created: string;
+};
 
 export type PostgresError = {
     length: number;
