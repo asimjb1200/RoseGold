@@ -82,18 +82,18 @@ router.post(
 router.post(
     '/login',
     [
-        check('username').notEmpty().isAlphanumeric(),
-        check('password').notEmpty().isAlphanumeric().isLength({min: 8, max: 16})
+        check('username').notEmpty().isString(),
+        check('password').notEmpty().isString().isLength({min: 8, max: 16})
     ],
     async (req: Request, res: Response) => {
         const validationErrors = validationResult(req);
         if (!validationErrors.isEmpty()) {
+            userLogger.error(`error during login validation: ${validationErrors}`);
             return res.status(422).json({errors: validationErrors.array()});
         }
+
         const {username, password} = req.body;
         // hash the pw before checking the db
-        // const hashObj: Hash = createHash('sha256');
-        // hashObj.update(password);
         const pwHash: string = hashMe(password);
 
         try {
