@@ -150,6 +150,7 @@ router.post('/forgot-password-step-one', async (req:Request, res:Response) => {
             return res.status(200).json(responseForClient);
         } else {
             const responseForClient:ResponseForClient<string> = {data: '', error: ['Could not find that account information in our servers.'], newToken:''};
+            userLogger.info(`couldn't find data on this attempted account: ${username} and ${emailAddress}`);
             // now return the code to the app so that it knows what the correct code is
             return res.status(404).json(responseForClient);
         }
