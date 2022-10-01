@@ -12,6 +12,7 @@ export type TempUser = {
     state: string;
     zipcode: string;
     geolocation: string;
+    phone: string;
 };
 
 export type ItemFromClient = {

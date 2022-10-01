@@ -38,10 +38,10 @@ class UserDataOperations {
                 (
                     username, accounttype, email, password,
                     avatarurl, userrating, address, zipcode, refreshtoken, geolocation,
-                    firstname, lastname
+                    firstname, lastname, phone
                 )
             VALUES
-                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
             RETURNING *
         `;
         const newUser = (
@@ -50,7 +50,7 @@ class UserDataOperations {
                                 [
                                     acct.username, acct.accounttype, acct.email, acct.password,
                                     acct.avatarurl, acct.userrating, acct.address, acct.zipcode, acct.refreshtoken, acct.geolocation,
-                                    acct.firstname, acct.lastname
+                                    acct.firstname, acct.lastname, acct.phone ?? ""
                                 ]
                             )
                         );

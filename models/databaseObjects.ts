@@ -41,6 +41,7 @@ export type Account = {
     zipcode: number;
     refreshtoken: string;
     geolocation: string;
+    phone?: string;
 };
 
 export type Chat = {

@@ -43,7 +43,8 @@ router.post(
                 email: rawUser.email.trim(),
                 refreshtoken: '',
                 avatarurl: `/images/avatars/${avatarImage.originalname}`,
-                geolocation: rawUser.geolocation.trim()
+                geolocation: rawUser.geolocation.trim(),
+                phone: rawUser.phone.trim()
             };
     
             // hash the user's password. crypto module uses utf8 encoding by default
