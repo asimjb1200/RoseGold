@@ -128,27 +128,56 @@ class UserDataOperations {
      * @param password the user's password hash
      * @returns an access token for the client
      */
-   async logUserIn(username: string, password: string): Promise<LoginOperationResponse> {
-        const sql = `SELECT * FROM accounts WHERE username=$1 AND password=$2`;
-        const acctInfoResponse: QueryResult<Account> = (await this.db.connection.query(sql, [username, password]));
-        if (acctInfoResponse.rowCount) {
-            // generate the user's tokens
-            let acctInfo: Account = acctInfoResponse.rows[0];
-            const tokens = generateTokens(acctInfo.username, acctInfo.accountid!);
-            acctInfo.refreshtoken = tokens.refreshToken;
+//    async logUserIn(username: string, password: string): Promise<LoginOperationResponse> {
+//         const sql = `SELECT * FROM accounts WHERE username=$1 AND password=$2`;
+//         const acctInfoResponse: QueryResult<Account> = (await this.db.connection.query(sql, [username, password]));
+//         if (acctInfoResponse.rowCount) {
+//             // generate the user's tokens
+//             let acctInfo: Account = acctInfoResponse.rows[0];
+//             const tokens = generateTokens(acctInfo.username, acctInfo.accountid!);
+//             acctInfo.refreshtoken = tokens.refreshToken;
 
-            // now update the account model in the db with the new refresh token
-            const userUpdated = await this.updateUser(acctInfo);
+//             // now update the account model in the db with the new refresh token
+//             const userUpdated = await this.updateUser(acctInfo);
 
-            if (userUpdated) {
-                // return the access token to the client for future use
-                return {accessToken: tokens.accessToken, userLoggedIn: true, updateError: false, accountId: acctInfo.accountid!};
-            } else {
-                return {accessToken: '', userLoggedIn: false, updateError: true};
-            }
+//             if (userUpdated) {
+//                 // return the access token to the client for future use
+//                 return {accessToken: tokens.accessToken, userLoggedIn: true, updateError: false, accountId: acctInfo.accountid!};
+//             } else {
+//                 return {accessToken: '', userLoggedIn: false, updateError: true};
+//             }
+//         } else {
+//             return {accessToken: '', userLoggedIn: false, updateError: false};
+//         }
+//    }
+
+    /** search the db for the user via their email address. If found, this will generate access and refresh tokens for the user. The refresh token will
+     * be stored in the db for later use.
+     * @param email the user's email
+     * @param password the user's password hash
+     * @returns an access token for the client
+     */
+   async logUserInWithEmail(email: string, password: string): Promise<LoginOperationResponse> {
+    const sql = `SELECT * FROM accounts WHERE email=$1 AND password=$2`;
+    const acctInfoResponse: QueryResult<Account> = (await this.db.connection.query(sql, [email, password]));
+    if (acctInfoResponse.rowCount) {
+        // generate the user's tokens
+        let acctInfo: Account = acctInfoResponse.rows[0];
+        const tokens = generateTokens(acctInfo.username, acctInfo.accountid!);
+        acctInfo.refreshtoken = tokens.refreshToken;
+
+        // now update the account model in the db with the new refresh token
+        const userUpdated = await this.updateUser(acctInfo);
+
+        if (userUpdated) {
+            // return the access token to the client for future use
+            return {accessToken: tokens.accessToken, userLoggedIn: true, username: acctInfo.username, updateError: false, accountId: acctInfo.accountid!};
         } else {
-            return {accessToken: '', userLoggedIn: false, updateError: false};
+            return {accessToken: '', userLoggedIn: false, username: '', updateError: true};
         }
+    } else {
+        return {accessToken: '', userLoggedIn: false, username: '', updateError: false};
+    }
    }
 
    async updateUser(acct: Account) {

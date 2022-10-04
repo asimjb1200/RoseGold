@@ -61,7 +61,25 @@ router.post(
         } catch (error: any) {
             if (isPostgresError(error)) {
                 if (error.constraint && error.constraint == 'username_taken') {
+                    userLogger.error(`error code ${error.code} when trying to create a new user. The attempted username is already in use.`);
+                    
+                    // now get rid of the avatar image we saved
+                    FileSystemFunctions
+                    .deleteUserAvatar(req.body.username)
+                    .catch((err: any) => { // just in case we get an error and I want to avoid the "unhandled promise exception"
+                        userLogger.error(`error code ${error} when trying to delete the user's picture`); 
+                    });
+
                     return res.status(409).json({msg: 'username taken'});
+                } else if (error.constraint && error.constraint == 'email_taken') {
+                    userLogger.error(`error code ${error.code} when trying to create a new user. The attempted email address is already in use.`);
+                    
+                    // now get rid of the avatar image we saved
+                    FileSystemFunctions
+                    .deleteUserAvatar(req.body.username)
+                    .catch((err: any) => { userLogger.error(`error code ${error} when trying to delete the user's picture`); });
+
+                    return res.status(409).json({msg: 'email address taken'});
                 } else {
                     userLogger.error(`error code ${error.code} when trying to create a new user: ${error}`);
                     return res.status(500).json('there was an error in the db');
@@ -75,15 +93,10 @@ router.post(
     }
 );
 
-// router.get('/test-email', async (req:Request, res:Response) => {
-//     let testEmail = await emailHandler.emailUser("asimjbrown@gmail.com", "test email", "making sure that the email functionality works as expected");
-//     return res.status(200).json('email sent');
-// });
-
 router.post(
     '/login',
     [
-        check('username').notEmpty().isString(),
+        check('email').notEmpty().isString(),
         check('password').notEmpty().isString().isLength({min: 8, max: 16})
     ],
     async (req: Request, res: Response) => {
@@ -93,20 +106,22 @@ router.post(
             return res.status(422).json({errors: validationErrors.array()});
         }
 
-        const {username, password} = req.body;
+        // const {username, password} = req.body;
+        const {email, password} = req.body;
         // hash the pw before checking the db
         const pwHash: string = hashMe(password);
 
         try {
-            let loginStatus: LoginOperationResponse = await userOps.logUserIn(username, pwHash);
+            // let loginStatus: LoginOperationResponse = await userOps.logUserIn(username, pwHash);
+            let loginStatus: LoginOperationResponse = await userOps.logUserInWithEmail(email, pwHash);
             if (loginStatus.userLoggedIn) {
                 let data = loginStatus.accessToken;
-                const userForClient:UserForClient = {username, accessToken:loginStatus.accessToken, accountId:loginStatus.accountId!, avatarUrl: `/images/avatars/${username}`};
+                const userForClient:UserForClient = {username: loginStatus.username, accessToken:loginStatus.accessToken, accountId:loginStatus.accountId!, avatarUrl: `/images/avatars/${loginStatus.username}`};
                 const responseForClient = {data:userForClient, error: []} as ResponseForClient<UserForClient>;
-                userLogger.info(`${username} just logged in.`);
+                userLogger.info(`${loginStatus.username} just logged in.`);
                 return res.status(200).json(responseForClient);
             } else if(!loginStatus.updateError && !loginStatus.userLoggedIn) {
-                userLogger.info(`bad password combo attempted. couldn't locate ${username} and ${password} in db`);
+                userLogger.info(`bad password combo attempted. couldn't locate ${email} and ${password} in db`);
                 const responseForClient = {data: '', error: ["couldn't find your login info"]} as ResponseForClient<string>;
                 return res.status(404).json(responseForClient);
             } else {
@@ -115,11 +130,11 @@ router.post(
             }
         } catch (err) {
             if (isPostgresError(err)) {
-                userLogger.error(`when trying to log ${username} in: ${err.detail}`);
+                userLogger.error(`when trying to log ${email} in: ${err.detail}`);
                 let resObj = {data: '', error: [err.detail]} as ResponseForClient<any>;
                 return res.status(500).json(resObj);
             } else {
-                userLogger.error(`when trying to log ${username} in: ${err}`);
+                userLogger.error(`when trying to log ${email} in: ${err}`);
                 let resObj = {data: '', error: [err]} as ResponseForClient<any>;
                 return res.status(500).json(resObj);
             }

@@ -37,6 +37,7 @@ export type LoginOperationResponse = {
     accessToken: string;
     userLoggedIn: boolean;
     updateError: boolean;
+    username: string
     accountId?:number;
 };
 
