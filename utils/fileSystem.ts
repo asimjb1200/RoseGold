@@ -44,13 +44,16 @@ export namespace FileSystemFunctions {
         fs.rm(path, {recursive:true, force:true}, () => {userLogger.info(`deleted photos for ${username}'s ${itemName} item`)});
     }
 
-    /* use this method to delete all of the user's item's images */
+    /** use this method to delete all of the user's item's images */
     export const deleteUserItemsDir = async (username: string) => {
         const path = `${__dirname}/images/${username}/`;
         fs.rm(path, {recursive:true, force:true}, () => { userLogger.info(`deleted item photos for ${username}`) } );
     }
 
-    /* use this method to delete the user's avatar image */
+    /**
+     * use this method to delete the user's avatar image
+     * @param username - the name of the user to save the avatar for
+     */
     export const deleteUserAvatar = async (username: string) => {
         const path = `${__dirname}/images/avatars/${username}.jpg`;
         fs.rm(path, () => {userLogger.info(`deleted ${username}'s profile image.`)});
