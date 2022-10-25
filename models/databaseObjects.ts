@@ -57,6 +57,7 @@ export type UnverifiedAccount = {
     geolocation: string | Point;
     phone: string;
     salt: string;
+    timestamp?: string;
 };
 
 export type Point = {

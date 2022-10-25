@@ -65,11 +65,10 @@ class UserDataOperations {
             INSERT INTO unverified_accounts 
                 (
                     username, email, password, avatarurl, address,
-                    zipcode, geolocation, firstname, lastname, phone, salt
+                    zipcode, geolocation, firstname, lastname, phone, salt, timestamp
                 )
             VALUES
-                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-            RETURNING *
+                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, current_timestamp)
         `;
 
         const values = [
