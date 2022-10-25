@@ -44,6 +44,26 @@ export type Account = {
     phone?: string;
 };
 
+export type UnverifiedAccount = {
+    accountid?: number;
+    firstname: string;
+    lastname: string;
+    username: string;
+    email: string;
+    password: string;
+    avatarurl: string;
+    address: string;
+    zipcode: number;
+    geolocation: string | Point;
+    phone: string;
+    salt: string;
+};
+
+export type Point = {
+    x:number;
+    y:number;
+}
+
 export type Chat = {
     id: string;
     senderid: number;

@@ -1,6 +1,6 @@
 import pg, {Pool, QueryResult} from 'pg';
 import dotenv from 'dotenv';
-import { Account, Chat, Favorite, Item, PasswordRecorvery, PostgresError } from '../models/databaseObjects.js';
+import { Account, Chat, Favorite, Item, PasswordRecorvery, PostgresError, UnverifiedAccount } from '../models/databaseObjects.js';
 import { generateTokens } from '../security/tokens/tokens.js';
 import { ChatWithUsername, FilteredItemResult, ItemDataForClient, LoginOperationResponse } from '../models/dtos.js';
 import { buildParamList } from '../utils/utils.js';
@@ -32,6 +32,7 @@ class UserDataOperations {
         return this._userInstance || (this._userInstance = new this());
     }
 
+    /** add a user to the main accounts table after they've verified their email address */
     async addNewUser(acct: Account) {
         const sql = `
             INSERT INTO accounts 
@@ -58,6 +59,27 @@ class UserDataOperations {
         return (newUser.rowCount ? true : false);
     }
 
+    /** add a user to the unverified table prior to them verifying their email address */
+    addNewUnverifiedUser(acct: UnverifiedAccount) {
+        const sql = `
+            INSERT INTO unverified_accounts 
+                (
+                    username, email, password, avatarurl, address,
+                    zipcode, geolocation, firstname, lastname, phone, salt
+                )
+            VALUES
+                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            RETURNING *
+        `;
+
+        const values = [
+            acct.username, acct.email, acct.password, acct.avatarurl, acct.address,
+            acct.zipcode, acct.geolocation, acct.firstname, acct.lastname, acct.phone, acct.salt
+        ];
+
+        return this.db.connection.query(sql, values);
+    }
+
     /** use this method for forgot password route. this will ensure that the
      * email address passed in by the user is actually associated with the username 
      * that is sent over
@@ -67,8 +89,14 @@ class UserDataOperations {
         return this.db.connection.query(sql, [username]);
     }
 
+    /** use this method to retrieve an unverified user by their email address */
+    getUnverifiedAccountByEmail(emailAddress: string): Promise<pg.QueryResult<UnverifiedAccount>>  {
+        const sql = 'select * from unverified_accounts where email = $1';
+        return this.db.connection.query(sql, [emailAddress]);
+    }
+
     /** use this method for inserting data into the password recovery table */
-    insertUserIntoPWRecovery(username:string, securityCode:string) {
+    insertUserIntoPWRecovery(username: string, securityCode:string) {
         const sql = "INSERT INTO password_recovery (username, security_code, created) VALUES ($1, $2, now())";
         return this.db.connection.query(sql, [username, securityCode]);
     }

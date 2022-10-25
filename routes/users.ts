@@ -1,12 +1,11 @@
 import express from "express";
 import { Request, Response } from "express";
-import { check, validationResult} from "express-validator";
+import { body, check, validationResult} from "express-validator";
 import { itemOps, userOps } from "../database/databaseOperations.js";
 import { userLogger } from "../loggers/logger.js";
-import { Account, isPostgresError, Item } from "../models/databaseObjects.js";
+import { Account, isPostgresError, UnverifiedAccount } from "../models/databaseObjects.js";
 import { FilteredItemResult, GroupedItems, ItemDataForClient, ItemNameAndId, LoginOperationResponse, ResponseForClient, TempUser, UserForClient } from "../models/dtos.js";
-import {createHash, Hash} from 'crypto';
-import { groupBy } from "../utils/utils.js";
+import { buildHashForAccountVerification, groupBy, initUnverifiedAccount, initVerifiedAccount } from "../utils/utils.js";
 import { FileSystemFunctions } from "../utils/fileSystem.js";
 import multer from "multer";
 import { authenticateJWT } from "../security/tokens/tokens.js";
@@ -19,79 +18,104 @@ const upload = multer({ storage: storage });
 
 router.post(
     '/register-user',
-    upload.single("avatar")
-    ,async (req: Request, res: Response) => {
+    upload.single("avatar"),
+    async (req: Request, res: Response) => {
         try {
             let avatarImage = req.file as Express.Multer.File;
             if (avatarImage.mimetype !== 'image/jpg' && avatarImage.mimetype !== 'image/jpeg') {
                 throw new Error('Only jpg images are allowed');
             }
 
-            const rawUser: TempUser = req.body;
-    
-            // save the user's avatar image
-            await FileSystemFunctions.saveAvatarImage(avatarImage);
-            const dbUser: Account = {
-                username: rawUser.username.trim(),
-                firstname: rawUser.firstName.trim(),
-                lastname: rawUser.lastName.trim(),
-                userrating: 0,
-                password: rawUser.password.trim(),
-                address: `${rawUser.address.trim()} ${rawUser.city.trim()} ${rawUser.state.trim()}`,
-                zipcode: +rawUser.zipcode.trim(),
-                accounttype: 1,
-                email: rawUser.email.trim(),
-                refreshtoken: '',
-                avatarurl: `/images/avatars/${avatarImage.originalname}`,
-                geolocation: rawUser.geolocation.trim(),
-                phone: rawUser.phone.trim()
-            };
-    
-            // hash the user's password. crypto module uses utf8 encoding by default
-            // const hashObj: Hash = createHash('sha256');
-            // hashObj.update(dbUser.password);
-            dbUser.password = hashMe(dbUser.password);
-            let userInserted = await userOps.addNewUser(dbUser);
-            userLogger.info(`New user created: ${dbUser.username}`);
+            const userFromReq: TempUser = req.body;
 
-            // email the user and inform them of their success
-            const emailText = "Congratulations, your account was successfully created. You can now login to the market to view all of the available plants in your area."
-            const emailSent = await emailHandler.emailUser(dbUser.email, "Welcome to RoseGold Market", emailText);
+            // build the unverified user object
+            const unverifiedAccount: UnverifiedAccount = initUnverifiedAccount(userFromReq);
+            
+            // add the user to the unverified table
+            await userOps.addNewUnverifiedUser(unverifiedAccount);
+            userLogger.info(`New user added to unverified table: ${unverifiedAccount.username}`);
+
+             // save the user's avatar image
+             await FileSystemFunctions.saveAvatarImage(avatarImage);
+
+            // build the hashvalue that will be sent to the user's email address
+            const userInformationHash: string = buildHashForAccountVerification(unverifiedAccount, unverifiedAccount.salt);
+
+            // now email the user with the hash value that I've created
+            await emailHandler.registrationConfirmationEmail(unverifiedAccount.email, userInformationHash);
+
             return res.status(200).json({msg: 'user created'});
         } catch (error: any) {
             if (isPostgresError(error)) {
-                if (error.constraint && error.constraint == 'username_taken') {
+                if (error.detail && error.detail == 'username_taken') {
                     userLogger.error(`error code ${error.code} when trying to create a new user. The attempted username is already in use.`);
-                    
-                    // now get rid of the avatar image we saved
-                    FileSystemFunctions
-                    .deleteUserAvatar(req.body.username)
-                    .catch((err: any) => { // just in case we get an error and I want to avoid the "unhandled promise exception"
-                        userLogger.error(`error code ${error} when trying to delete the user's picture`); 
-                    });
 
                     return res.status(409).json({msg: 'username taken'});
-                } else if (error.constraint && error.constraint == 'email_taken') {
+                } else if (error.detail && error.detail == 'email_taken') {
                     userLogger.error(`error code ${error.code} when trying to create a new user. The attempted email address is already in use.`);
-                    
-                    // now get rid of the avatar image we saved
-                    FileSystemFunctions
-                    .deleteUserAvatar(req.body.username)
-                    .catch((err: any) => { userLogger.error(`error code ${error} when trying to delete the user's picture`); });
 
-                    return res.status(409).json({msg: 'email address taken'});
+                    return res.status(410).json({msg: 'email address taken'});
                 } else {
                     userLogger.error(`error code ${error.code} when trying to create a new user: ${error}`);
                     return res.status(500).json('there was an error in the db');
                 }
             } else {
-                console.log(error);
                 userLogger.error(`error while trying to create a user: ${error}`);
                 return res.status(500).json({msg: 'user not created'});
             }
         }
     }
 );
+
+router.post(
+    '/confirm-account', 
+    [
+        body('usersEmail', 'invalid email').notEmpty().isEmail().normalizeEmail(),
+        body('userInformationHash', 'invalid code').notEmpty().isString()
+    ], 
+    async (req:Request, res:Response) => {
+        const validationErrors = validationResult(req);
+        if (!validationErrors.isEmpty()) {
+            return res.status(422).json({ errors: validationErrors.array() });
+        }
+        try {
+            const {userInformationHash, usersEmail} = req.body;
+
+            // grab the unverified_user from the db
+            const unverifiedUser:UnverifiedAccount = (await userOps.getUnverifiedAccountByEmail(usersEmail)).rows[0];
+
+            // if the user isn't present..
+            if (unverifiedUser  === undefined) {
+                return res.status(404).json('user not present');
+            }
+            
+            // recalculate the hash from the user who has this email address and see if the client sent the correct one
+            const myCalculatedHash:string = buildHashForAccountVerification(unverifiedUser, unverifiedUser.salt);
+
+            switch (myCalculatedHash === userInformationHash) {
+                case true:
+                    userLogger.info(`${usersEmail} sent over a correct verification hash.`);
+                    // build a verified user object
+                    const verifiedUser:Account = initVerifiedAccount(unverifiedUser);
+
+                    // insert it into the main accounts table now
+                    const userAdded: boolean = await userOps.addNewUser(verifiedUser);
+                    
+                    userLogger.info(`A new user has just verified their account: ${unverifiedUser.username}`);
+
+                    // the user can login now
+                    return res.status(201).json('hashes match');
+                    break;
+                case false:
+                    userLogger.info(`${usersEmail} did not send a correct verification hash.`);
+                    return res.status(401).json('hashes DONT match');
+                    break;
+            }
+        } catch (error) {
+            userLogger.error(`error occurred while trying to verify a new user: ${error}`);
+            return res.status(500).json('an error occurred');
+        }
+});
 
 router.post(
     '/login',
@@ -141,6 +165,11 @@ router.post(
         }
     }
 );
+
+router.get('/test-email-conf', async (req: Request, res: Response) => {
+    await emailHandler.registrationConfirmationEmail("ajbtech@yahoo.com", "test@mail.com");
+    return res.status(200).json("all done");
+});
 
 router.post('/forgot-password-step-one', async (req:Request, res:Response) => {
     // extract the user's username and email from the body

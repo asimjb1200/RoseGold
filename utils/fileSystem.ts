@@ -1,7 +1,6 @@
 import fs from 'fs';
 import { __dirname } from '../app.js';
 import { userLogger } from '../loggers/logger.js';
-//const __dirname = process.cwd();
 
 export namespace FileSystemFunctions {
     const fsPromises = fs.promises;
@@ -56,7 +55,7 @@ export namespace FileSystemFunctions {
      */
     export const deleteUserAvatar = async (username: string) => {
         const path = `${__dirname}/images/avatars/${username}.jpg`;
-        fs.rm(path, () => {userLogger.info(`deleted ${username}'s profile image.`)});
+        fs.rm(path, () => {userLogger.info(`deleted ${username} profile image.`)});
     }
 
 
