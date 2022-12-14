@@ -59,6 +59,12 @@ class UserDataOperations {
         return (newUser.rowCount ? true : false);
     }
 
+    /** to figure out if an email address exists */
+    verifyEmailAddress(email: string) {
+        const sql = 'select 1 as "exists" from accounts where email=$1';
+        return this.db.connection.query(sql, [email]);
+    }
+
     /** add a user to the unverified table prior to them verifying their email address */
     addNewUnverifiedUser(acct: UnverifiedAccount) {
         const sql = `
@@ -95,15 +101,15 @@ class UserDataOperations {
     }
 
     /** use this method for inserting data into the password recovery table */
-    insertUserIntoPWRecovery(username: string, securityCode:string) {
-        const sql = "INSERT INTO password_recovery (username, security_code, created) VALUES ($1, $2, now())";
-        return this.db.connection.query(sql, [username, securityCode]);
+    insertUserIntoPWRecovery(email: string, securityCode:string) {
+        const sql = "INSERT INTO password_recovery (email, security_code, created) VALUES ($1, $2, now())";
+        return this.db.connection.query(sql, [email, securityCode]);
     }
 
     /** use after you've provided a user their security code for their password reset. this will then remove them from the password recovery table */
-    deleteFromPWRecovery(username: string) {
-        const sql = "DELETE FROM password_recovery WHERE username=$1";
-        return this.db.connection.query(sql, [username]);
+    deleteFromPWRecovery(email: string) {
+        const sql = "DELETE FROM password_recovery WHERE email=$1";
+        return this.db.connection.query(sql, [email]);
     }
 
     findUserBySecurityCode(securityCode:string): Promise<pg.QueryResult<PasswordRecorvery>> {
@@ -112,9 +118,9 @@ class UserDataOperations {
     }
 
     /** update the user's password in the database */
-    updateUserPassword(username:string, newPassword:string) {
-        const sql = 'UPDATE accounts SET password=$1 WHERE username=$2';
-        return this.db.connection.query(sql, [newPassword, username]);
+    updateUserPassword(email:string, newPassword:string) {
+        const sql = 'UPDATE accounts SET password=$1 WHERE email=$2';
+        return this.db.connection.query(sql, [newPassword, email]);
     }
 
     /** used when a user wants to see all of the items that they have listed. Returns an array of item names and ids. Intended to be used in a list view on the client.

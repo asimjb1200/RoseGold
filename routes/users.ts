@@ -3,7 +3,7 @@ import { Request, Response } from "express";
 import { body, check, validationResult} from "express-validator";
 import { itemOps, userOps } from "../database/databaseOperations.js";
 import { userLogger } from "../loggers/logger.js";
-import { Account, isPostgresError, UnverifiedAccount } from "../models/databaseObjects.js";
+import { Account, isPostgresError, PasswordRecorvery, UnverifiedAccount } from "../models/databaseObjects.js";
 import { FilteredItemResult, GroupedItems, ItemDataForClient, ItemNameAndId, LoginOperationResponse, ResponseForClient, TempUser, UserForClient } from "../models/dtos.js";
 import { buildHashForAccountVerification, groupBy, initUnverifiedAccount, initVerifiedAccount } from "../utils/utils.js";
 import { FileSystemFunctions } from "../utils/fileSystem.js";
@@ -173,29 +173,43 @@ router.get('/test-email-conf', async (req: Request, res: Response) => {
 
 router.post('/forgot-password-step-one', async (req:Request, res:Response) => {
     // extract the user's username and email from the body
-    const {username, emailAddress} = req.body;
+    const {emailAddress} = req.body;
     
     try {
         // make sure that username matches that email address
-        const emailInDb:string = (await userOps.getEmailByUsername(username as string)).rows[0].email;
-        if (emailInDb === emailAddress as string) {
+        const emailFound = (await userOps.verifyEmailAddress(emailAddress as string)).rows[0].exists;
+        console.log(emailFound);
+        if (emailFound && emailFound === 1) {
             // generate a 3 byte (6 digit with hex) random code from the returned buffer
             const randomData:string =  (await generateRandomCode(3)).toString('hex');
 
             // store it in the temp pw database
-            const userInserted = await userOps.insertUserIntoPWRecovery(username, randomData);
+            const userInserted = await userOps.insertUserIntoPWRecovery(emailAddress, randomData);
             
             // email it to the user
-            const text = `Enter the following code into the app to continue with the password reset process. This code is only valid for <em>10 minutes.</em><br/><br/><strong>${randomData}</strong>`;
-            const sendEmail = await emailHandler.emailUser(emailAddress, "Password Reset Process - RoseGoldMarket", text);
-            userLogger.info(`Began the password reset process for user ${username}`);
+            const text = `
+            <div style="padding: 15px;">
+            <p style="display:block;">Hello, </p>
+        
+            <p style="display:block;">We’ve received a request to reset the password for the Rose Gold Gardens account associated with “${emailAddress}”. No changes have been made to your account yet.</p>
+            <p style="display:block;">You can reset your password by returning to Rose Gold and entering the code below:</p>
+            <div style="height:90px;border: 2px solid #466975;line-height:90px;text-align:center;border-radius:5px;margin:auto;background-color:#ADD8E6;font-size:30px;padding:0 10px;width: 110px;">
+                ${randomData}
+            </div>
+            <p>If you did not request a new password, please let us know immediately by replying to this email.</p>
+        
+            <strong>- The Rose Gold team</strong>
+            </div>
+            `;
+            const sendEmail = await emailHandler.emailUser(emailAddress, "Password Recovery - Rose Gold Gardens", text);
+            userLogger.info(`Began the password reset process for user ${emailAddress}`);
 
             const responseForClient:ResponseForClient<string> = {data: randomData, error: [], newToken: ''};
             // now return the code to the app so that it knows what the correct code is
             return res.status(200).json(responseForClient);
         } else {
             const responseForClient:ResponseForClient<string> = {data: '', error: ['Could not find that account information in our servers.'], newToken:''};
-            userLogger.info(`couldn't find data on this attempted account: ${username} and ${emailAddress}`);
+            userLogger.info(`couldn't find data on this attempted account: ${emailAddress}`);
             // now return the code to the app so that it knows what the correct code is
             return res.status(404).json(responseForClient);
         }
@@ -206,40 +220,64 @@ router.post('/forgot-password-step-one', async (req:Request, res:Response) => {
             return res.status(500).json(responseForClient);
         } else {
             userLogger.error(`there was a problem on our end: ${error}`);
+            console.log(error);
             const responseForClient:ResponseForClient<string> = {data:'', error: ['There was a problem on our end. Try again later.'], newToken: ''};
             return res.status(500).json(responseForClient);
         }
     }
 });
 
+router.post('/check-sec-code', async (req:Request, res:Response) => {
+    const {emailAddress, securityCode} = req.body;
+    if (!emailAddress || !securityCode) return res.status(403);
+
+    try {
+        // look up the security code in the database
+        const user: PasswordRecorvery = (await userOps.findUserBySecurityCode(securityCode as string)).rows[0];
+        if (typeof user != "undefined" && user.security_code === securityCode && emailAddress === user.email) {
+            return res.status(200).json('no good');
+        } else {
+            userLogger.info('attempted to find a non existent security code for: ' + emailAddress);
+            return res.status(404).json('no good');
+        }
+    } catch (error) {
+        if (isPostgresError(error)) {
+            userLogger.error(`Tried to find a user for the code ${securityCode}. Error ${error.code}: ${error.detail}`);
+        } else {
+            userLogger.error(`Tried to find a user for the code ${securityCode}. Error: ${error}`);
+        }
+        return res.status(500).json('an error occurred');
+    }
+})
+
 router.post('/forgot-password-reset', async (req:Request, res:Response) => {
     const {securityCode, newPassword} = req.body;
 
-    if (!securityCode) return res.status(404);
+    if (!securityCode) return res.status(404).json('cant find it');
     
     try {
         // look up the security code in the database
-        const user = (await userOps.findUserBySecurityCode(securityCode as string)).rows[0];
+        const user: PasswordRecorvery = (await userOps.findUserBySecurityCode(securityCode as string)).rows[0];
 
-        if (user.username) {
+        if (user.email) {
             // hash their new password
             const pwHash: string = hashMe(newPassword);
 
             // now insert it into the database
-            const userUpdated = await userOps.updateUserPassword(user.username, pwHash);
-            userLogger.info(`user ${user.username} has updated their password.`);
+            const userUpdated = await userOps.updateUserPassword(user.email, pwHash);
+            userLogger.info(`user ${user.email} has updated their password.`);
 
             // now delete the user out of the temp database
-            const userRemoved = await userOps.deleteFromPWRecovery(user.username);
+            const userRemoved = await userOps.deleteFromPWRecovery(user.email);
 
             if (userRemoved.rowCount) {
-                userLogger.info(`removed ${user.username} from the password recovery table`);
+                userLogger.info(`removed ${user.email} from the password recovery table`);
             }
 
             // email the user that their password has changed
-            const emailResultObj = (await userOps.getEmailByUsername(user.username)).rows[0];
+            //const emailResultObj = (await userOps.getEmailByUsername(user.username)).rows[0];
             const text = "Your RoseGold Market account password has been updated in our system. If you didn't make this change please contact us immediately.";
-            const emailSent = await emailHandler.emailUser(emailResultObj.email, "Password Updated", text);
+            const emailSent = await emailHandler.emailUser(user.email, "Password Updated", text);
 
             return res.status(200).json('good');
         } else {
@@ -251,7 +289,7 @@ router.post('/forgot-password-reset', async (req:Request, res:Response) => {
         } else {
             userLogger.error(`Tried to find a user for the code ${securityCode}. Error: ${error}`);
         }
-        return res.status(500);
+        return res.sendStatus(500);
     }
 });
 

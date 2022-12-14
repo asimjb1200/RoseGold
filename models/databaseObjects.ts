@@ -74,7 +74,7 @@ export type Chat = {
 };
 
 export type PasswordRecorvery = {
-    username: string;
+    email: string;
     security_code: string;
     created: string;
 };
