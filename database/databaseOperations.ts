@@ -102,7 +102,12 @@ class UserDataOperations {
 
     /** use this method for inserting data into the password recovery table */
     insertUserIntoPWRecovery(email: string, securityCode:string) {
-        const sql = "INSERT INTO password_recovery (email, security_code, created) VALUES ($1, $2, now())";
+        // we have to allow for multiple request to update the password, so I am using an 'on conflict' clause in the query...
+        const sql = `
+        INSERT INTO password_recovery (email, security_code, created) VALUES ($1, $2, NOW())
+        ON CONFLICT (email)
+        DO UPDATE SET security_code=$2, created=NOW()
+        `;
         return this.db.connection.query(sql, [email, securityCode]);
     }
 

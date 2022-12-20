@@ -1,6 +1,6 @@
 import express from "express";
 import { Request, Response } from "express";
-import { body, check, validationResult} from "express-validator";
+import { body, check, checkSchema, validationResult} from "express-validator";
 import { itemOps, userOps } from "../database/databaseOperations.js";
 import { userLogger } from "../loggers/logger.js";
 import { Account, isPostgresError, PasswordRecorvery, UnverifiedAccount } from "../models/databaseObjects.js";
@@ -121,7 +121,7 @@ router.post(
     '/login',
     [
         check('email').notEmpty().isString(),
-        check('password').notEmpty().isString().isLength({min: 8, max: 16})
+        check('password').notEmpty().isString().isLength({min: 8, max: 20})
     ],
     async (req: Request, res: Response) => {
         const validationErrors = validationResult(req);
@@ -259,7 +259,7 @@ router.post('/forgot-password-reset', async (req:Request, res:Response) => {
         // look up the security code in the database
         const user: PasswordRecorvery = (await userOps.findUserBySecurityCode(securityCode as string)).rows[0];
 
-        if (user.email) {
+        if (typeof user !== 'undefined' && user.email) {
             // hash their new password
             const pwHash: string = hashMe(newPassword);
 
@@ -293,8 +293,19 @@ router.post('/forgot-password-reset', async (req:Request, res:Response) => {
     }
 });
 
-router.post('/change-address', authenticateJWT, async (req:Request, res:Response) => {
+router.post(
+    '/change-address', 
+    [
+        authenticateJWT, check('newAddress').exists().notEmpty().isString(), check('newCity').exists().notEmpty().isString(),
+        check('newZip').exists().notEmpty(), check('newState').exists().notEmpty().isString(), check('newGeolocation').exists().notEmpty().isString()
+    ], async (req:Request, res:Response) => {
     if (!req.user) return res.status(403).json('unauthorized');
+
+    const validationErrors = validationResult(req);
+    if (!validationErrors.isEmpty()) {
+        userLogger.error(`error during login validation: ${validationErrors}`);
+        return res.status(422).json({errors: validationErrors.array()});
+    }
 
     // grab the user's new data
     const { newAddress, newCity, newZip, newState, newGeolocation } = req.body;
