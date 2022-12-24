@@ -177,11 +177,17 @@ router.post('/forgot-password-step-one', async (req:Request, res:Response) => {
     
     try {
         // make sure that username matches that email address
-        const emailFound = (await userOps.verifyEmailAddress(emailAddress as string)).rows[0].exists;
-        console.log(emailFound);
-        if (emailFound && emailFound === 1) {
+        const emailFound = (await userOps.verifyEmailAddress(emailAddress as string)).rows[0];
+
+        if (typeof emailFound === 'undefined') {
+            const responseForClient:ResponseForClient<string> = {data: '', error: ['Could not find that account information in our servers.'], newToken:''};
+            userLogger.info(`couldn't find data on this attempted account: ${emailAddress}`);
+            return res.status(404).json(responseForClient);  
+        }
+        
+        if (emailFound && emailFound.exists === 1) {
             // generate a 3 byte (6 digit with hex) random code from the returned buffer
-            const randomData:string =  (await generateRandomCode(3)).toString('hex');
+            const randomData:string = (await generateRandomCode(3)).toString('hex');
 
             // store it in the temp pw database
             const userInserted = await userOps.insertUserIntoPWRecovery(emailAddress, randomData);

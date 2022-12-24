@@ -60,7 +60,7 @@ class UserDataOperations {
     }
 
     /** to figure out if an email address exists */
-    verifyEmailAddress(email: string) {
+    verifyEmailAddress(email: string): Promise<pg.QueryResult<{exists:number}>> {
         const sql = 'select 1 as "exists" from accounts where email=$1';
         return this.db.connection.query(sql, [email]);
     }
