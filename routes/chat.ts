@@ -1,8 +1,9 @@
 import express, { Request, Response } from 'express';
-import { chatOps } from '../database/databaseOperations.js';
+import { chatOps, userOps } from '../database/databaseOperations.js';
 import { chatLogger } from '../loggers/logger.js';
-import { isPostgresError } from '../models/databaseObjects.js';
-import { GroupedChats, ChatWithUsername, ResponseForClient } from '../models/dtos.js';
+import { Chat, isPostgresError } from '../models/databaseObjects.js';
+import { GroupedChats, ChatWithUsername, ResponseForClient, UsernameAndId, ChatPreview } from '../models/dtos.js';
+import { hashMe } from '../security/hashing/hashStuff.js';
 
 let router = express.Router();
 
@@ -56,5 +57,127 @@ router.get('/chat-history', async (req:Request, res:Response) => {
         }
     }
 });
+
+/*
+    this endpoint is for loading the user's last message for each chat that
+    they are in.
+    This is going to allow me to populate their message tab in the application with
+    the last chat in each conversation they're in
+**/
+router.get('/latest-messages', async (req:Request, res:Response) => {
+    // get the id of the user sending the request (the viewer)
+    try {
+        let viewingAccount = Number(req.query.accountId as string);
+
+        // check database for any chat they're in
+        let chatHistory: Chat[] = await chatOps.fetchChatHistory(viewingAccount);
+        let latestChatForEachConvo: Chat[] = [];
+        
+        // the chats are in descending order, so the newest ones are at the front
+        for (let x = 0; x < chatHistory.length; x++) {
+            const currentChat: Chat = chatHistory[x];
+            
+            if (x === 0) {
+                latestChatForEachConvo.push(chatHistory[x]);
+            } else {
+                if (checkForMatches(latestChatForEachConvo, currentChat.senderid, currentChat.recid) === false) {
+                    latestChatForEachConvo.push(chatHistory[x]);
+                }
+            }        
+        }
+
+        const receivingUsers: number[] = latestChatForEachConvo.map(x => {
+            if (x.recid === viewingAccount) {
+                return x.senderid;
+            } else {
+                return x.recid;
+            }
+        });
+
+        // fetch the usernames for each of these id's
+        const usernamesAndIds: UsernameAndId[] = await userOps.getUsernameAndId(receivingUsers);
+
+        const latestChatPreviews: ChatPreview[] = latestChatForEachConvo.map(chat => {
+            const userToFind: number = chat.recid === viewingAccount ? chat.senderid : chat.recid;
+            const nonViewingUsersUsername: string = usernamesAndIds.find(x => x.accountid === userToFind)!.username;
+            const chatPreview: ChatPreview = {
+                id: chat.id,
+                nonViewingUsersUsername,
+                recid: chat.recid,
+                senderid: chat.senderid,
+                message: chat.message,
+                timestamp: chat.timestamp
+            }
+            return chatPreview;
+        });
+    
+        return res.status(200).json(latestChatPreviews);
+    } catch (error) {
+        if (isPostgresError(error)) {
+            chatLogger.error(`database error during the fetching of latest messages: ${error}`);
+        } else {
+            chatLogger.error(`error occurred during the fetching of latest messages: ${error}`);
+        }
+        return res.sendStatus(500);
+    }
+});
+
+router.get('/get-chat-thread', async (req:Request, res:Response) => {
+    try {
+        const viewingAccount = Number(req.query.viewingAccount);
+        const otherUserAccount = Number(req.query.otherUserAccount);
+
+        // get the chat history between these two users
+        const chatThread:ChatWithUsername[] = await chatOps.getChatHistoryBetweenUsers(viewingAccount, otherUserAccount);
+
+        return res.status(200).json(chatThread);
+    } catch (error) {
+        console.log(error);
+        return res.sendStatus(500);
+    }
+});
+
+router.get('/get-username', async (req:Request, res: Response) => {
+    try {
+        const accountId: number = Number(req.query.accountId as string);
+
+        // get the username associated with this account id
+        const username = await userOps.getUsername(accountId);
+    
+        return res.status(200).json(username);
+    } catch (error) {
+        console.log(error);
+        return res.sendStatus(500);
+    }
+});
+
+function checkForMatches(latestChatForEachConvo: Chat[], senderAccount:number, receiverAccount:number) {
+    let matchFound = false;
+    for (let conversation of latestChatForEachConvo) {
+        if (
+            (conversation.recid === senderAccount && conversation.senderid === receiverAccount)
+            || (conversation.senderid === senderAccount && conversation.recid === receiverAccount)
+            || (conversation.recid === receiverAccount && conversation.senderid === senderAccount)
+            || (conversation.senderid === receiverAccount && conversation.recid === senderAccount)
+        ) {
+            matchFound = true;
+            break
+        }
+    };
+    return matchFound;
+}
+
+function hasUniqueAccountsCombo(conversation: Chat, senderAccount: number, receiverAccount: number) {
+    if (
+        (conversation.recid === senderAccount && conversation.senderid === receiverAccount)
+        || (conversation.senderid === senderAccount && conversation.recid === receiverAccount)
+        || (conversation.recid === receiverAccount && conversation.senderid === senderAccount)
+        || (conversation.senderid === receiverAccount && conversation.recid === senderAccount)
+    ) {
+        return false;
+    } else {
+        return true;
+    }
+}
 
 export default router;

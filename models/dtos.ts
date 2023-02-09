@@ -71,6 +71,20 @@ export type PrivateMessage = {
     receiverAccountId: number; 
 }
 
+export type ChatPreview = {
+    id: string;
+    senderid: number;
+    recid: number;
+    message: string;
+    timestamp: string;
+    nonViewingUsersUsername: string;
+}
+
+export type UsernameAndId = {
+    accountid: number;
+    username:string;
+}
+
 export type FilteredItemResult = {
     id: number;
     owner: number;

@@ -2,7 +2,7 @@ import pg, {Pool, QueryResult} from 'pg';
 import dotenv from 'dotenv';
 import { Account, Chat, Favorite, Item, PasswordRecorvery, PostgresError, UnverifiedAccount } from '../models/databaseObjects.js';
 import { generateTokens } from '../security/tokens/tokens.js';
-import { ChatWithUsername, FilteredItemResult, ItemDataForClient, LoginOperationResponse } from '../models/dtos.js';
+import { ChatWithUsername, FilteredItemResult, ItemDataForClient, LoginOperationResponse, UsernameAndId } from '../models/dtos.js';
 import { buildParamList } from '../utils/utils.js';
 import { chatLogger } from '../loggers/logger.js';
 
@@ -57,6 +57,12 @@ class UserDataOperations {
                         );
 
         return (newUser.rowCount ? true : false);
+    }
+
+    async getUsernameAndId(userIdArray:number[]) {
+        const sql = `select accountid, username from accounts where accountid in (${buildParamList(userIdArray.length)})`;
+        const usernamesAndIds: UsernameAndId[] = (await this.db.connection.query(sql, userIdArray)).rows;
+        return usernamesAndIds;
     }
 
     /** to figure out if an email address exists */
@@ -552,6 +558,7 @@ class ItemDataOperations {
 }
 
 class ChatDataOperations {
+    
     private static _instance: ChatDataOperations;
     private db: DatabaseOperations = DatabaseOperations.DBConnector;
 
@@ -595,11 +602,15 @@ class ChatDataOperations {
     /** fetch the full chat history between two users. The oldest message will be the first element in the array (ascending order) */
     async getChatHistoryBetweenUsers(senderAccountId: number, receiverAccountId: number) {
         const sql = `
-            SELECT * FROM messages
-            WHERE senderid=$1 AND recid=$2
+            SELECT
+                id, senderid, recid, message, timestamp, 
+                (select username from accounts where accountid=msgs.senderid) as "senderUsername",
+                (select username from accounts where accountid=msgs.recid) as "receiverUsername"
+            FROM messages as msgs
+            WHERE senderid=$1 AND recid=$2 OR recid=$1 AND senderid=$2
             ORDER BY timestamp asc
         `;
-        const chatLog: Chat[] = (await this.db.connection.query(sql, [senderAccountId, receiverAccountId])).rows;
+        const chatLog: ChatWithUsername[] = (await this.db.connection.query(sql, [senderAccountId, receiverAccountId])).rows;
         return chatLog;
     }
 
@@ -620,6 +631,12 @@ class ChatDataOperations {
 
         const chatMsgs: ChatWithUsername[] = (await this.db.connection.query(sql, [accountId])).rows;
         return chatMsgs;
+    }
+
+    async fetchChatHistory(accountId: number): Promise<Chat[]> {
+        const sql = 'select * from messages where recid = $1 or senderid=$1 order by timestamp desc';
+        let chatHistory: Chat[] = (await this.db.connection.query(sql, [accountId])).rows;
+        return chatHistory
     }
 }
 
