@@ -110,8 +110,12 @@ router.get('/latest-messages', async (req:Request, res:Response) => {
             }
             return chatPreview;
         });
-    
-        return res.status(200).json(latestChatPreviews);
+
+        const dataForClient:ResponseForClient<ChatPreview[]> = {data: latestChatPreviews, error: []};
+        if (res.locals.newAccessToken) {
+            dataForClient.newToken = res.locals.newAccessToken;
+        }
+        return res.status(200).json(dataForClient);
     } catch (error) {
         if (isPostgresError(error)) {
             chatLogger.error(`database error during the fetching of latest messages: ${error}`);
@@ -130,7 +134,11 @@ router.get('/get-chat-thread', async (req:Request, res:Response) => {
         // get the chat history between these two users
         const chatThread:ChatWithUsername[] = await chatOps.getChatHistoryBetweenUsers(viewingAccount, otherUserAccount);
 
-        return res.status(200).json(chatThread);
+        const dataForClient:ResponseForClient<ChatWithUsername[]> = {data:chatThread, error: []};
+        if (res.locals.newAccessToken) {
+            dataForClient.newToken = res.locals.newAccessToken;
+        }
+        return res.status(200).json(dataForClient);
     } catch (error) {
         console.log(error);
         return res.sendStatus(500);
