@@ -638,6 +638,16 @@ class ChatDataOperations {
         let chatHistory: Chat[] = (await this.db.connection.query(sql, [accountId])).rows;
         return chatHistory
     }
+
+    fetchChatHistoryV2(accountId: number) {
+        /** 
+         * 
+         * select senderid, recid, max(timestamp)
+         * from messages where senderid=21 or recid=21
+         * group by senderid, recid
+         * if i use the above query, I can then use the timestamp as my identifier to get any information that I need/do any filtrations
+        */
+    }
 }
 
 /** database methods for user operations */

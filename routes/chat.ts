@@ -165,11 +165,9 @@ function checkForMatches(latestChatForEachConvo: Chat[], senderAccount:number, r
         if (
             (conversation.recid === senderAccount && conversation.senderid === receiverAccount)
             || (conversation.senderid === senderAccount && conversation.recid === receiverAccount)
-            || (conversation.recid === receiverAccount && conversation.senderid === senderAccount)
-            || (conversation.senderid === receiverAccount && conversation.recid === senderAccount)
         ) {
             matchFound = true;
-            break
+            break;
         }
     };
     return matchFound;
@@ -179,8 +177,6 @@ function hasUniqueAccountsCombo(conversation: Chat, senderAccount: number, recei
     if (
         (conversation.recid === senderAccount && conversation.senderid === receiverAccount)
         || (conversation.senderid === senderAccount && conversation.recid === receiverAccount)
-        || (conversation.recid === receiverAccount && conversation.senderid === senderAccount)
-        || (conversation.senderid === receiverAccount && conversation.recid === senderAccount)
     ) {
         return false;
     } else {
