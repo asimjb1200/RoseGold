@@ -37,7 +37,7 @@ export namespace FileSystemFunctions {
     }
 
     /** use this one to delete the entire dir that for the item */
-    export const deleteItemImages = async (username:string, itemName:string) =>{
+    export const deleteItemImages = async (username:string, itemName:string) => {
         const path = `${__dirname}/images/${username}/${itemName}/`;
 
         fs.rm(path, {recursive:true, force:true}, () => {userLogger.info(`deleted photos for ${username}'s ${itemName} item`)});
@@ -58,7 +58,6 @@ export namespace FileSystemFunctions {
         fs.rm(path, () => {userLogger.info(`deleted ${username} profile image.`)});
     }
 
-
     /** save the user's avatar image into the avatar directory.
      * @param filename - the file to save. the name of the file should be the user's username. 
      * This method will overwrite the file if it already exists.
@@ -71,5 +70,33 @@ export namespace FileSystemFunctions {
             await fsPromises.mkdir(`${__dirname}/images/avatars`, {recursive: true});
             return fsPromises.writeFile(path, data.buffer);
         }
+    }
+
+    /** use this method to rename a user's avatar image */
+    export async function renameAvatarImage(newUsername:string, oldUsername:string) {
+        const oldProfileImageName = `${__dirname}/images/avatars/${oldUsername}.jpg`;
+        const newProfileImageName = `${__dirname}/images/avatars/${newUsername}.jpg`;
+
+        fs.rename(oldProfileImageName, newProfileImageName, (error: NodeJS.ErrnoException | null) => {
+            if (error) {
+                console.log(error);
+            } else {
+                userLogger.info(`updated ${newUsername}'s profile picture name`);
+            }
+        });
+    }
+
+    /** use this method to rename the user's image directory that contains all of the images for their items */
+    export async function renameItemOwnerFolder(newUsername:string, oldUsername: string) {
+        const oldUserImagesHome = `${__dirname}/images/${oldUsername}`;
+        const newUserImagesHome = `${__dirname}/images/${newUsername}`;
+
+        fs.rename(oldUserImagesHome, newUserImagesHome, (error: NodeJS.ErrnoException | null) => {
+            if (error) {
+                console.log(error);
+            } else {
+                userLogger.info(`updated ${newUsername}'s home image directory`);
+            }
+        });
     }
 }

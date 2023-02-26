@@ -166,6 +166,65 @@ router.post(
     }
 );
 
+router.get('/change-username', authenticateJWT, async (req:Request, res:Response) => {
+    const newUsername = req.query.newUsername  as string;
+    const oldUsername = req.query.oldUsername as string;
+
+    try {
+        const updateCompleted = (await userOps.updateUsername(newUsername, oldUsername)).rowCount;
+
+        if (updateCompleted === 1) {
+            userLogger.info(`changed username from ${oldUsername} to ${newUsername}`);
+
+            // change their avatar name
+            await FileSystemFunctions.renameAvatarImage(newUsername, oldUsername);
+
+            // change their image folder name
+            await FileSystemFunctions.renameItemOwnerFolder(newUsername, oldUsername);
+
+            const responseForClient:ResponseForClient<boolean> = {data: true, error: []};
+
+            if (res.locals.newAccessToken){
+                responseForClient.newToken = res.locals.newAccessToken;
+            }
+
+            return res.status(200).json(responseForClient);
+        } else {
+            return res.status(500).json({data: true, error: []});
+        }
+    } catch (error) {
+        if (isPostgresError(error)) {
+            userLogger.error(`error while updating username: ${error.code} ${error.detail}`);
+        } else {
+            userLogger.error(`error while updating username: ${error}`);
+        }
+        return res.sendStatus(500);
+    }
+});
+
+router.get('/check-username', async (req:Request, res:Response) => {
+    try {
+        const newUsername = req.query.newUsername  as string;
+
+        // see if username is available
+        const usernameFound = (await userOps.checkUsernameAvailability(newUsername)).rows[0].count;
+
+        if (usernameFound === '0') {
+            return res.status(200).json('0');
+        } else {
+            return res.status(200).json('1');
+        }   
+    } catch (error) {
+        if (isPostgresError(error)) {
+            userLogger.error(`error while checking for a username: ${error}`);
+            return res.status(500).json('postgres error');
+        } else {
+            console.log(error);
+            return res.status(500).json('error occurred');
+        }
+    }
+ });
+
 router.get('/test-email-conf', async (req: Request, res: Response) => {
     await emailHandler.registrationConfirmationEmail("ajbtech@yahoo.com", "test@mail.com");
     return res.status(200).json("all done");

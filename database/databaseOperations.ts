@@ -59,10 +59,24 @@ class UserDataOperations {
         return (newUser.rowCount ? true : false);
     }
 
+    updateUsername(newUsername: string, oldUsername: string) {
+        const sql = `
+        update accounts 
+        set username = $1, avatarurl = '/images/avatars/${newUsername}.jpg'
+        where username = $2`;
+        return this.db.connection.query(sql, [newUsername, oldUsername]);
+    }
+
     async getUsernameAndId(userIdArray:number[]) {
         const sql = `select accountid, username from accounts where accountid in (${buildParamList(userIdArray.length)})`;
         const usernamesAndIds: UsernameAndId[] = (await this.db.connection.query(sql, userIdArray)).rows;
         return usernamesAndIds;
+    }
+
+    /** to figure out if a username exists */
+    checkUsernameAvailability(username: string): Promise<pg.QueryResult<{count:string}>>  {
+        const sql = "select count(1) from accounts where username = $1";
+        return this.db.connection.query(sql, [username]);
     }
 
     /** to figure out if an email address exists */
