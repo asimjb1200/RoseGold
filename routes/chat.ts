@@ -65,6 +65,7 @@ router.get('/chat-history', async (req:Request, res:Response) => {
     the last chat in each conversation they're in
 **/
 router.get('/latest-messages', async (req:Request, res:Response) => {
+    if (!req.user) return res.status(403).json('unauthorized');
     // get the id of the user sending the request (the viewer)
     try {
         let viewingAccount = Number(req.query.accountId as string);
@@ -127,6 +128,7 @@ router.get('/latest-messages', async (req:Request, res:Response) => {
 });
 
 router.get('/get-chat-thread', async (req:Request, res:Response) => {
+    if (!req.user) return res.status(403).json('unauthorized');
     try {
         const viewingAccount = Number(req.query.viewingAccount);
         const otherUserAccount = Number(req.query.otherUserAccount);
@@ -146,6 +148,7 @@ router.get('/get-chat-thread', async (req:Request, res:Response) => {
 });
 
 router.get('/get-username', async (req:Request, res: Response) => {
+    if (!req.user) return res.status(403).json('unauthorized');
     try {
         const accountId: number = Number(req.query.accountId as string);
 

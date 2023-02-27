@@ -141,12 +141,12 @@ router.post(
             if (safeText.length) {
                 records = await itemOps.fetchFilteredItems(
                     filterQueryParams.categories, filterQueryParams.limit,
-                    filterQueryParams.offset, filterQueryParams.longAndLat, filterQueryParams.miles, safeText
+                    filterQueryParams.offset, filterQueryParams.longAndLat, filterQueryParams.miles, safeText, req.user.accountId
                 );
             } else {
                 records = await itemOps.fetchFilteredItems(
                     filterQueryParams.categories, filterQueryParams.limit,
-                    filterQueryParams.offset, filterQueryParams.longAndLat, filterQueryParams.miles
+                    filterQueryParams.offset, filterQueryParams.longAndLat, filterQueryParams.miles, '', req.user.accountId
                 );
             }
 

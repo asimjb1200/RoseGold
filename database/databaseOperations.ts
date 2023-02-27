@@ -467,16 +467,14 @@ class ItemDataOperations {
         }
     }
 
-    /** use this method to return items that have been filtered by category and location
-     * @param zipcodes an array of zipcodes to search within
-     * @param categoryIds an array of categories to search within
+    /** use this method to return items that have been filtered by category and location. 
+     * Also will only return items NOT created by the requesting user
      */
-    async fetchFilteredItems(categoryIds: number[], limit: number, offset: number, longAndLat: string, miles: number = 10, searchTerm = ''): Promise<FilteredItemResult[]> {
+    async fetchFilteredItems(categoryIds: number[], limit: number, offset: number, longAndLat: string, miles: number = 10, searchTerm = '', accountid = 0): Promise<FilteredItemResult[]> {
         let sql: string;
         let records: FilteredItemResult[];
         if (categoryIds.length) {
             const categoryParamList = buildParamList(categoryIds.length);
-            const valuesList: number[] = [...categoryIds];
 
             sql = `
                 SELECT
@@ -491,6 +489,7 @@ class ItemDataOperations {
                 AND isavailable=true
                 AND pickedup=false
                 AND (items.geolocation<@>'${longAndLat}') < ${miles}
+                AND items.accountid != ${accountid}
                 ORDER BY dateposted DESC
                 LIMIT ${limit}
                 OFFSET ${offset}
@@ -510,6 +509,7 @@ class ItemDataOperations {
                 AND isavailable=true
                 AND pickedup=false
                 AND (items.geolocation<@>'${longAndLat}') < ${miles}
+                AND items.accountid != ${accountid}
                 ORDER BY dateposted DESC
                 LIMIT ${limit}
                 OFFSET ${offset}
