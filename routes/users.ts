@@ -379,6 +379,10 @@ router.post(
     try {
         // update the database with the new info
         await userOps.updateUserAddress(newFullAddress, newZip as number, newGeolocation as string, req.user.accountId);
+
+        // update all of the user's items as well
+        await userOps.updateUserItemsLocation(newGeolocation as string, req.user.accountId);
+
         const responseForClient:ResponseForClient<string> = {data:'data updated', error:[]};
         if (res.locals.newAccessToken) {
             responseForClient.newToken = res.locals.newAccessToken;
@@ -394,7 +398,7 @@ router.post(
     }
 });
 
-router.post('/change-avatar', [authenticateJWT, upload.single("avatar")],async (req:Request, res:Response) => {
+router.post('/change-avatar', [authenticateJWT, upload.single("avatar")], async (req:Request, res:Response) => {
     if (!req.user) return res.status(403).json('unauthorized');
     try {
         let avatarImage = req.file as Express.Multer.File;
@@ -413,7 +417,11 @@ router.post('/change-avatar', [authenticateJWT, upload.single("avatar")],async (
         userLogger.error(`error occurred when trying to replace ${req.user?.username}'s avatar: ${error}`);
         return res.status(500).json('error occurred');
     }
-})
+});
+
+router.post('/email-support', async (req:Request, res:Response) => {
+    
+});
 
 router.get('/items', authenticateJWT, async (req:Request, res:Response) => {
     const accountId = req.query.accountId;

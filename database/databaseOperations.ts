@@ -67,6 +67,12 @@ class UserDataOperations {
         return this.db.connection.query(sql, [newUsername, oldUsername]);
     }
 
+    /** update the location of all the items*/
+    updateUserItemsLocation(newGeolocation: string, accountId: number) {
+        const sql = 'update items set geolocation=$1 where accountid=$2';
+        return this.db.connection.query(sql, [newGeolocation, accountId]);
+    }
+
     async getUsernameAndId(userIdArray:number[]) {
         const sql = `select accountid, username from accounts where accountid in (${buildParamList(userIdArray.length)})`;
         const usernamesAndIds: UsernameAndId[] = (await this.db.connection.query(sql, userIdArray)).rows;
