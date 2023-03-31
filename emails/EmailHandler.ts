@@ -56,7 +56,7 @@ class EmailHandler {
     }
 
     /** use this when you want to relay a message from the users to the rose gold staff */
-    emailSupport(to: string, from: string, subject: string, text: string): Promise<any> {
+    emailSupport(from: string, subject: string, text: string): Promise<any> {
         return this.transporter.sendMail({
             from,
             to: this.supportEmailAddress,

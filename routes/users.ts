@@ -12,6 +12,7 @@ import { authenticateJWT } from "../security/tokens/tokens.js";
 import { emailHandler } from "../emails/EmailHandler.js";
 import { generateRandomCode } from "../security/encryption/codeGenerator.js";
 import { hashMe } from "../security/hashing/hashStuff.js";
+
 let router = express.Router();
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
@@ -165,6 +166,30 @@ router.post(
         }
     }
 );
+
+router.post('/report-user', authenticateJWT, async (req:Request, res:Response) => {
+    if (!req.user) return res.status(403).json('unauthorized');
+
+    // grab the reporting user and reported user ids and the reason
+    const {reportingUserId, reportedUserId, reason} = req.body;
+
+    try {
+        // add to the database
+        await userOps.reportUser(reportingUserId as number, reportedUserId as number, reason as string);
+
+        // send an email to us indicating what happened
+        await emailHandler.emailSupport("express server", "User Reported", `User ${reportedUserId} was just reported by user ${reportingUserId} for: \n\t"${reason}".\nCheck the database for details.`);
+
+        return res.status(200).json('success');
+    } catch (error) {
+        if (isPostgresError(error)) {
+            userLogger.error(`error while trying to report a user: ${error.code} ${error.hint} ${error.detail}`)
+        } else {
+            userLogger.error(`error while trying to report a user: ${error}`);
+        }
+        return res.status(500).json('failed');
+    }
+});
 
 router.get('/change-username', authenticateJWT, async (req:Request, res:Response) => {
     const newUsername = req.query.newUsername  as string;
@@ -422,7 +447,6 @@ router.post('/change-avatar', [authenticateJWT, upload.single("avatar")], async 
 router.post('/email-support', async (req:Request, res:Response) => {
     
 });
-
 router.get('/items', authenticateJWT, async (req:Request, res:Response) => {
     const accountId = req.query.accountId;
     if (!accountId) return res.status(500).json('no account id provided');
