@@ -5,6 +5,7 @@ import { generateTokens } from '../security/tokens/tokens.js';
 import { ChatWithUsername, FilteredItemResult, ItemDataForClient, LoginOperationResponse } from '../models/dtos.js';
 import { buildParamList } from '../utils/utils.js';
 import { chatLogger } from '../loggers/logger.js';
+import { randomUUID } from 'crypto';
 
 dotenv.config();
 
@@ -23,6 +24,7 @@ class DatabaseOperations {
 }
 
 class UserDataOperations {
+
     private static _userInstance: UserDataOperations;
     private db: DatabaseOperations = DatabaseOperations.DBConnector
 
@@ -86,6 +88,14 @@ class UserDataOperations {
     getEmailByUsername(username: string): Promise<pg.QueryResult<{email: string}>> {
         const sql = "SELECT email FROM accounts WHERE username=$1";
         return this.db.connection.query(sql, [username]);
+    }
+
+    /** add a report to the database. This happens when a user wants to report another user for some type of misconduct */
+    reportUser(reportingUser: number, reportedUser: number, reason: string) {
+        const uuid = randomUUID();
+        const sql = "insert into reported_users (id, reported_account, reporting_user, reason, timestamp) values ($1, $2, $3, $4, now())";
+        
+        return this.db.connection.query(sql, [uuid, reportedUser, reportingUser, reason]);
     }
 
     /** use this method to retrieve an unverified user by their email address */
