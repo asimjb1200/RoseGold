@@ -41,7 +41,7 @@ class EmailHandler {
             subject:'Welcome to the Market!',
             html: `<img src="cid:RoseGoldBanner" style="width:100%"/>
             <h1 style="text-align:center;font-size:1.5em;">Congratulations!</h1>
-            <p style="font-size:1em;text-align:center;">Your <strong>RoseGold Markets</strong> account has been created. Remember, you will be signing in with your email address and the password you just created. This link is only valid for 24 hours, so please verify quickly.</p>
+            <p style="font-size:1em;text-align:center;">Your <strong>RoseGold Gardens</strong> account has been created. Remember, you will be signing in with your email address and the password you just created. This link is only valid for 24 hours, so please verify quickly.</p>
             <p style="font-size:1em;text-align:center;">If you did not initiate this account registration please contact us our support team at <a href="mailto:${this.supportEmailAddress}">${this.supportEmailAddress}</p>
             <div style="text-align:center;">
             <a href="https://www.rosegoldgardens.com/success/?emailAddress=${newUsersEmail}&userInformation=${userInformationHash}" style="padding:15px;background-color:#0690de;color:white;display:inline-block;border-radius:15px;text-decoration:none;font-size:2em;">Confirm Account</a>
