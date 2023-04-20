@@ -279,7 +279,7 @@ router.post('/edit-item', upload.array('images'), async (req:Request, res:Respon
         }
         
         const itemData: ItemFromClient = req.body;
-        const categoryIds: number[] = JSON.parse(itemData.categoryIds.trim());
+        //const categoryIds: number[] = JSON.parse(itemData.categoryIds.trim());
         
         const itemForDB: Item = {
             id: +itemData.itemId!.trim(),
@@ -308,7 +308,7 @@ router.post('/edit-item', upload.array('images'), async (req:Request, res:Respon
         let itemUpdated = itemOps.updateItem(itemForDB);
 
         // now update the item's categories in the item_categories table
-        const categoriesInserted = await itemOps.postItemCategories(itemForDB.id!, categoryIds);
+        //const categoriesInserted = await itemOps.postItemCategories(itemForDB.id!, categoryIds);
         const responseForClient = {data:'ok', error:[]} as ResponseForClient<string>;
         if (res.locals.newAccessToken) {
             responseForClient.newToken = res.locals.newAccessToken;
@@ -324,6 +324,38 @@ router.post('/edit-item', upload.array('images'), async (req:Request, res:Respon
             itemLogger.error(`tried to update item: ${error}`);
         }
         return res.status(500).json('error');
+    }
+});
+
+router.post('/edit-item-categories', async (req: Request, res: Response) => {
+    if (!req.user) return res.status(403).json('unauthorized');
+
+    try {
+        const categoryIds: number[] = req.body.categories;
+        const itemId: number = +req.body.itemId;
+
+        await itemOps.deleteItemCategories(itemId);
+        await itemOps.updateItemCategories(itemId, categoryIds);
+
+        itemLogger.info(`user updated the categories to item ${itemId}`);
+
+        const responseForClient = {data:true, error:[]} as ResponseForClient<boolean>;
+        if (res.locals.newAccessToken) {
+            responseForClient.newToken = res.locals.newAccessToken;
+        }
+
+        return res.status(200).json(responseForClient);
+    } catch (error) {
+        if (isPostgresError(error)) {
+            itemLogger.error(`there was an error when updating categories for an item: ${error}`);
+        } else {
+            itemLogger.error(`there was an error when updating categories for an item: ${error}`);
+        }
+        const responseForClient = {data:false, error:[]} as ResponseForClient<false>;
+        if (res.locals.newAccessToken) {
+            responseForClient.newToken = res.locals.newAccessToken;
+        }
+        res.status(500).json(responseForClient);
     }
 });
 

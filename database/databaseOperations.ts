@@ -340,6 +340,31 @@ class ItemDataOperations {
             ]);
     }
 
+    /** used for updating the categories on an item */
+    async updateItemCategories(itemId: number, categories: number[]) {
+        let valueParamsForInsert = '';
+        // build out the value sets that the query will use
+        for (let index = 1; index < categories.length+1; index++) {
+            if (index == categories.length) {
+                valueParamsForInsert += `($1, $${index+1})`
+            } else {
+                valueParamsForInsert += `($1, $${index+1}),`
+            }
+        }
+
+        const sql = `INSERT INTO item_categories (itemId, category) VALUES ${valueParamsForInsert};`;
+
+        const values: number[] = [];
+        values.push(itemId, ...categories);
+        return this.db.connection.query(sql, values);
+    }
+
+    /** Use this method to delete all of an item's categories */
+    async deleteItemCategories(itemId: number) {
+        const sql = 'DELETE FROM item_categories WHERE itemId = $1;';
+        return this.db.connection.query(sql, [itemId]);
+    }
+
     async postItemCategories(itemId: number, categories: number[]) {
         let valueParamsForInsert = '';
         // build out the value sets that the query will use
