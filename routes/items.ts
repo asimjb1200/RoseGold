@@ -279,9 +279,11 @@ router.post('/edit-item', upload.array('images'), async (req:Request, res:Respon
         }
         
         const itemData: ItemFromClient = req.body;
-        //const categoryIds: number[] = JSON.parse(itemData.categoryIds.trim());
         
-        const itemForDB: Item = {
+        // grab the item's currently stored name from the database. I'll need it to check if the item's name has changed
+        const storedItem: Item = ( await itemOps.fetchItemData(itemData.itemId!.trim()) ).rows[0];
+        
+        const newItemForDB: Item = {
             id: +itemData.itemId!.trim(),
             accountid: Number(itemData.accountid.trim()),
             name: itemData.name.trim(),
@@ -292,23 +294,27 @@ router.post('/edit-item', upload.array('images'), async (req:Request, res:Respon
             zipcode: Number(itemData.zipcode.trim())
         };
 
+        // figure out if I need to update the item's name in my file system
+        if (storedItem.name !== newItemForDB.name) {
+            // update the item's folder name in my directory
+            await FileSystemFunctions.renameItemFolder(newItemForDB.name, storedItem.name, req.user.username);
+        }
+
         // update the item's pictures
         await Promise.all([
-            FileSystemFunctions.saveItemImages(imagesForItem[0], req.user.username, itemForDB.name),
-            FileSystemFunctions.saveItemImages(imagesForItem[1], req.user.username, itemForDB.name),
-            FileSystemFunctions.saveItemImages(imagesForItem[2], req.user.username, itemForDB.name)
+            FileSystemFunctions.saveItemImages(imagesForItem[0], req.user.username, newItemForDB.name),
+            FileSystemFunctions.saveItemImages(imagesForItem[1], req.user.username, newItemForDB.name),
+            FileSystemFunctions.saveItemImages(imagesForItem[2], req.user.username, newItemForDB.name)
         ]);
 
-        const imageFilePaths: string[] = await FileSystemFunctions.getImagesFilePathForItem(req.user.username, itemForDB.name);
-        itemForDB.image1 = imageFilePaths[0];
-        itemForDB.image2 = imageFilePaths[1];
-        itemForDB.image3 = imageFilePaths[2];
+        const imageFilePaths: string[] = await FileSystemFunctions.getImagesFilePathForItem(req.user.username, newItemForDB.name);
+        newItemForDB.image1 = imageFilePaths[0];
+        newItemForDB.image2 = imageFilePaths[1];
+        newItemForDB.image3 = imageFilePaths[2];
 
         //update the item in the item table
-        let itemUpdated = itemOps.updateItem(itemForDB);
+        let itemUpdated = itemOps.updateItem(newItemForDB);
 
-        // now update the item's categories in the item_categories table
-        //const categoriesInserted = await itemOps.postItemCategories(itemForDB.id!, categoryIds);
         const responseForClient = {data:'ok', error:[]} as ResponseForClient<string>;
         if (res.locals.newAccessToken) {
             responseForClient.newToken = res.locals.newAccessToken;

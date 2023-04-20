@@ -99,4 +99,18 @@ export namespace FileSystemFunctions {
             }
         });
     }
+
+    /** use this method to change the name of a specific item folder in the user's home folder. for example, if I want to change an item from 'plant one' to 'plant two' */
+    export async function renameItemFolder(newItemName: string, oldItemName: string, ownerName: string) {
+        const oldItemFolderPath = `${__dirname}/images/${ownerName}/${oldItemName}`;
+        const newItemFolderPath = `${__dirname}/images/${ownerName}/${newItemName}`;
+
+        fs.rename(oldItemFolderPath, newItemFolderPath, (error: NodeJS.ErrnoException | null) => {
+            if (error) {
+                console.log(error);
+            } else {
+                userLogger.info(`updated ${ownerName}'s item image directory from ${oldItemName} to ${newItemName}`);
+            }
+        });
+    }
 }
