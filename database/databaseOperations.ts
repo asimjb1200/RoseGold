@@ -641,7 +641,7 @@ class ChatDataOperations {
 
     /** adds a user's message to the unread table */
     addMessageToUnreadQueue(unreadMessageBlock: UnreadMessage) {
-        const sql = "INSERT INTO unread_messages (messageid, senderid, recid) VALUES ($1, $2, $3)";
+        const sql = "INSERT INTO unread_messages (message_id, senderid, recid) VALUES ($1, $2, $3)";
         return this.db.connection.query(sql, [unreadMessageBlock.message_id, unreadMessageBlock.senderid, unreadMessageBlock.recid]);
     }
 
