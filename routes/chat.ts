@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
 import { chatOps, userOps } from '../database/databaseOperations.js';
 import { chatLogger } from '../loggers/logger.js';
-import { Chat, isPostgresError } from '../models/databaseObjects.js';
+import { Chat, UnreadMessage, isPostgresError } from '../models/databaseObjects.js';
 import { GroupedChats, ChatWithUsername, ResponseForClient, UsernameAndId, ChatPreview } from '../models/dtos.js';
 import { hashMe } from '../security/hashing/hashStuff.js';
 
@@ -158,6 +158,56 @@ router.get('/get-username', async (req:Request, res: Response) => {
         return res.status(200).json(username);
     } catch (error) {
         console.log(error);
+        return res.sendStatus(500);
+    }
+});
+
+router.get('/get-unread-messages', async (req:Request, res: Response) => {
+    if (!req.user) return res.status(403).json('unauthorized');
+
+    try {
+        // get all of a user's unread messages
+        const unreadMessages:UnreadMessage[] = (await chatOps.getUnreadMessagesForUser(req.user.accountId)).rows;
+
+        const responseForClient: ResponseForClient<UnreadMessage[]> = {data: unreadMessages, error: []};
+
+        if (res.locals.newAccessToken) {
+            responseForClient.newToken = res.locals.newAccessToken;
+        }
+
+        return res.status(200).json(responseForClient);
+    } catch (error) {
+        if (isPostgresError(error)) {
+            chatLogger.error(`database error ${error.code} during the fetching of unread messages: ${error.detail}`);
+        } else {
+            chatLogger.error(`error occurred during the fetching of latest messages: ${error}`);
+        }
+        return res.sendStatus(500);
+    }
+});
+
+router.delete('/delete-from-unread',async (req:Request, res:Response) => {
+    if (!req.user) return res.status(403).json('unauthorized');
+
+    try {
+        const {senderId} = req.body;
+
+        // delete the messages from the unread table between the user and another user
+        await chatOps.deleteMessagesFromUnreadTable(req.user.accountId, senderId);
+
+        const responseForClient: ResponseForClient<boolean> = {data: true, error: []};
+
+        if (res.locals.newAccessToken) {
+            responseForClient.newToken = res.locals.newAccessToken;
+        }
+
+        return res.status(200).json(responseForClient);
+    } catch (error) {
+        if (isPostgresError(error)) {
+            chatLogger.error(`database error ${error.code} during the fetching of unread messages: ${error.detail}`);
+        } else {
+            chatLogger.error(`error occurred during the fetching of latest messages: ${error}`);
+        }
         return res.sendStatus(500);
     }
 });

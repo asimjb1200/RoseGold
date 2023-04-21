@@ -1,6 +1,6 @@
 import pg, {Pool, QueryResult} from 'pg';
 import dotenv from 'dotenv';
-import { Account, Chat, Favorite, Item, PasswordRecorvery, PostgresError, UnverifiedAccount } from '../models/databaseObjects.js';
+import { Account, Chat, Favorite, Item, PasswordRecorvery, PostgresError, UnreadMessage, UnverifiedAccount } from '../models/databaseObjects.js';
 import { generateTokens } from '../security/tokens/tokens.js';
 import { ChatWithUsername, FilteredItemResult, ItemDataForClient, LoginOperationResponse, UsernameAndId } from '../models/dtos.js';
 import { buildParamList } from '../utils/utils.js';
@@ -637,6 +637,24 @@ class ChatDataOperations {
 
         const newChat: Chat = (await this.db.connection.query(sql, [id, senderid, recid, message, timestamp])).rows[0];
         return newChat;
+    }
+
+    /** adds a user's message to the unread table */
+    addMessageToUnreadQueue(unreadMessageBlock: UnreadMessage) {
+        const sql = "INSERT INTO unread_messages (messageid, senderid, recid) VALUES ($1, $2, $3)";
+        return this.db.connection.query(sql, [unreadMessageBlock.message_id, unreadMessageBlock.senderid, unreadMessageBlock.recid]);
+    }
+
+    /** pull in all unread messages where the requesting user is the receiver */
+    getUnreadMessagesForUser(receivingUserId: number): Promise<QueryResult<UnreadMessage>> {
+        const sql = "SELECT * FROM unread_messages WHERE recid = $1";
+        return this.db.connection.query<UnreadMessage>(sql, [receivingUserId]);
+    }
+
+    /** delete messages from unread table after they've been viewed by the user for a specific chat */
+    deleteMessagesFromUnreadTable(receivingUserId: number, senderId: number) {
+        const sql = "DELETE FROM unread_messages WHERE recid = $1 AND senderid = $2";
+        return this.db.connection.query<UnreadMessage>(sql, [receivingUserId, senderId]);
     }
 
     async deleteMsg(chatBlock: Chat) {

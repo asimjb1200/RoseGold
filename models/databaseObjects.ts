@@ -12,6 +12,12 @@ export type Item = {
     description: string;
 };
 
+export type UnreadMessage = {
+    message_id: string;
+    senderid: number;
+    recid: number;
+};
+
 export type ItemCategories = {
     itemid: number;
     category: number;
