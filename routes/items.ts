@@ -164,7 +164,7 @@ router.post(
                 const firstItem = itemDTOS[0]; // all items under the current key are the same, so pick any one to use for grabbing info
 
                 const item: ItemDataForClient = {
-                    id: +itemIdKey, name: firstItem.name, description: firstItem.description, dateposted: firstItem.dateposted,
+                    id: +itemIdKey, name: decodeURI(firstItem.name), description: firstItem.description, dateposted: firstItem.dateposted,
                     isavailable: firstItem.isavailable, pickedup: firstItem.pickedup, categories: categoryListForItem, owner: firstItem.owner,
                     image1: firstItem.image1, image2: firstItem.image2, image3: firstItem.image3, ownerUsername: firstItem.ownerUsername
                 }
@@ -237,7 +237,7 @@ router.get('/item-details-for-edit', async (req:Request, res:Response) => {
         // now build the item for the client to use
         const itemForClient:ItemDataForClient = {
             id: itemInfo.id!,// id will always be there in this scenario due to the prior query
-            name: itemInfo.name,
+            name: decodeURI(itemInfo.name),
             description: itemInfo.description,
             dateposted: new Date(itemInfo.dateposted),
             owner: req.user.accountId,
