@@ -168,7 +168,11 @@ class UserDataOperations {
      * @param accountId - the owner of the items to be returned
      */
     async itemsOwnedByAccountId(accountId:string) {
-        const sql = "select id, name from items where accountid=$1";
+        const sql = `select id, name, (
+            select username 
+             from accounts 
+            where accountid = items.accountid
+        ) as "ownerUsername" from items where accountid=$1`;
         return this.db.connection.query(sql, [accountId]);
     }
 

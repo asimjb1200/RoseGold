@@ -509,7 +509,7 @@ router.get('/user-items', authenticateJWT, async (req:Request, res:Response) => 
 
     try {
         // query the items table for any items owned by this user
-        const itemsUnderAccount: ItemNameAndId[] = (await userOps.itemsOwnedByAccountId(accountId)).rows;
+        const itemsUnderAccount: {id:number, name:string, ownerUsername:string}[] = (await userOps.itemsOwnedByAccountId(accountId)).rows;
         const responseForClient = {data:itemsUnderAccount, error:[]} as ResponseForClient<ItemNameAndId[]>;
         if (res.locals.newAccessToken) {
             responseForClient.newToken = res.locals.newAccessToken;
