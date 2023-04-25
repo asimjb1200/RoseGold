@@ -471,7 +471,7 @@ router.get('/items', authenticateJWT, async (req:Request, res:Response) => {
             const item: ItemDataForClient = {
                 id: +itemIdKey, name: firstItem.name, description: firstItem.description, dateposted: firstItem.dateposted,
                 isavailable: firstItem.isavailable, pickedup: firstItem.pickedup, categories: categoryListForItem, owner: firstItem.owner,
-                image1: firstItem.image1, image2: firstItem.image2, image3: firstItem.image3
+                image1: firstItem.image1, image2: firstItem.image2, image3: firstItem.image3, ownerUsername: firstItem.ownerUsername
             }
 
             finalItemArray.push(item);
@@ -509,7 +509,7 @@ router.get('/user-items', authenticateJWT, async (req:Request, res:Response) => 
 
     try {
         // query the items table for any items owned by this user
-        const itemsUnderAccount: {id:number, name:string, ownerUsername:string}[] = (await userOps.itemsOwnedByAccountId(accountId)).rows;
+        const itemsUnderAccount: ItemNameAndId[] = (await userOps.itemsOwnedByAccountId(accountId)).rows;
         const responseForClient = {data:itemsUnderAccount, error:[]} as ResponseForClient<ItemNameAndId[]>;
         if (res.locals.newAccessToken) {
             responseForClient.newToken = res.locals.newAccessToken;

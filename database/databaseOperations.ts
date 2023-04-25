@@ -168,11 +168,7 @@ class UserDataOperations {
      * @param accountId - the owner of the items to be returned
      */
     async itemsOwnedByAccountId(accountId:string) {
-        const sql = `select id, name, (
-            select username 
-             from accounts 
-            where accountid = items.accountid
-        ) as "ownerUsername" from items where accountid=$1`;
+        const sql = `select id, name from items where accountid=$1`;
         return this.db.connection.query(sql, [accountId]);
     }
 
@@ -583,7 +579,7 @@ class ItemDataOperations {
             SELECT
             items.id, items.name, items.description, items.image1, items.image2, items.image3,
             items.accountid as "owner", category.description as category,
-            items.isavailable, items.pickedup, items.dateposted
+            items.isavailable, items.pickedup, items.dateposted, (select username from accounts where accountid = items.accountid) as "ownerUsername"
             FROM items
             INNER JOIN item_categories ON item_categories.itemid = items.id
             INNER JOIN category ON item_categories.category = category.id
