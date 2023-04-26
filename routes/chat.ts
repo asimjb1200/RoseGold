@@ -204,9 +204,9 @@ router.delete('/delete-from-unread',async (req:Request, res:Response) => {
         return res.status(200).json(responseForClient);
     } catch (error) {
         if (isPostgresError(error)) {
-            chatLogger.error(`database error ${error.code} during the fetching of unread messages: ${error.detail}`);
+            chatLogger.error(`database error ${error.code} during the deletion of unread messages: ${error.detail}`);
         } else {
-            chatLogger.error(`error occurred during the fetching of latest messages: ${error}`);
+            chatLogger.error(`error occurred during the deletion of unread messages: ${error}`);
         }
         return res.sendStatus(500);
     }

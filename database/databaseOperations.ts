@@ -654,7 +654,7 @@ class ChatDataOperations {
     /** delete messages from unread table after they've been viewed by the user for a specific chat */
     deleteMessagesFromUnreadTable(receivingUserId: number, senderId: number) {
         const sql = "DELETE FROM unread_messages WHERE recid = $1 AND senderid = $2";
-        return this.db.connection.query<UnreadMessage>(sql, [receivingUserId, senderId]);
+        return this.db.connection.query(sql, [receivingUserId, senderId]);
     }
 
     async deleteMsg(chatBlock: Chat) {
