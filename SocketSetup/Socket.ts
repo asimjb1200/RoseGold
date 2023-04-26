@@ -20,6 +20,7 @@ export class SocketSetup {
             socket.on("disconnect me", (accountId: number) => {
                 if (this.allSocketConnections[accountId]) {
                     delete this.allSocketConnections[accountId];
+                    console.log("socket disconnected");
                 }
             });
 
