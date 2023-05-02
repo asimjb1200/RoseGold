@@ -446,6 +446,7 @@ class ItemDataOperations {
         return !!deletionResult;
     }
  
+    /** use to update all attributes of an item */
     async updateItem(newItem: Item) {
         const valuesList: any[] = [];
         valuesList.push(
@@ -470,6 +471,12 @@ class ItemDataOperations {
         `;
         const itemUpdated = (await this.db.connection.query(sql, valuesList)).rowCount;
         return (itemUpdated ? true : false);
+    }
+
+    /** use to toggle the availability of an item, this query will ensure that the user making the request owns the item */
+    async updateItemAvailability(itemId: number, isAvailable: boolean, accountId: number) {
+        const sql = `update items set isavailable = $2 where accountid = $3 and id = $1`;
+        return this.db.connection.query(sql, [itemId, isAvailable, accountId]);
     }
 
     async fetchItems(limit: string, offset: string, zipcode: number | number[], categories?: number[]) {

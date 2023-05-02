@@ -197,6 +197,34 @@ router.post(
     }
 );
 
+router.post('/toggle-item-availability', async (req:Request, res:Response) => {
+    if (!req.user) return res.status(405).json('unauthorized');
+
+    try {
+        let itemId = req.body.itemId as number;
+        let itemIsAvailable = req.body.itemIsAvailable as boolean;
+        let ownerAccountId = req.user.accountId;
+    
+        // update the item's availability
+        await itemOps.updateItemAvailability(itemId, itemIsAvailable, ownerAccountId);
+
+        const responseForClient = {data: true, error: []} as ResponseForClient<boolean>;
+        
+        if (res.locals.newAccessToken) {
+            responseForClient.newToken = res.locals.newAccessToken;
+        }
+
+        return res.status(200).json(responseForClient);
+    } catch (error) {
+        if (isPostgresError(error)) {
+            itemLogger.error(`Problem when trying to update item: ${error.code} ${error.detail}`);
+        } else {
+            itemLogger.error(`Problem when trying to delete item: ${error}`);
+        }
+        return res.sendStatus(500);
+    }
+});
+
 router.delete('/delete-item', async (req:Request, res:Response) => {
     if (!req.user) return res.status(403).json('unauthorized');
     let itemToDelete = req.query.itemId as string;
