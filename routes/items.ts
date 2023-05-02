@@ -198,7 +198,7 @@ router.post(
 );
 
 router.post('/toggle-item-availability', async (req:Request, res:Response) => {
-    if (!req.user) return res.status(405).json('unauthorized');
+    if (!req.user) return res.status(403).json('unauthorized');
 
     try {
         let itemId = req.body.itemId as number;
