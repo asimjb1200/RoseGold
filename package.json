@@ -8,6 +8,7 @@
         "start": "~/.nvm/versions/node/v15.6.0/bin/node ./build/bin/www",
         "start:dev": "nodemon -r ./bin/www",
         "build-start": "npm run build && npm run start",
+        "build-start-prod": "NODE_ENV=production && npm run build && npm run start",
         "tsc": "tsc",
         "tsStart": "node ./build/bin/www"
     },
