@@ -2,7 +2,7 @@ import pg, {Pool, QueryResult} from 'pg';
 import dotenv from 'dotenv';
 import { Account, Chat, Favorite, Item, PasswordRecorvery, PostgresError, UnreadMessage, UnverifiedAccount } from '../models/databaseObjects.js';
 import { generateTokens } from '../security/tokens/tokens.js';
-import { ChatWithUsername, FilteredItemResult, ItemDataForClient, LoginOperationResponse, UsernameAndId } from '../models/dtos.js';
+import { ChatPreview, ChatWithUsername, FilteredItemResult, ItemDataForClient, LoginOperationResponse, UsernameAndId } from '../models/dtos.js';
 import { buildParamList } from '../utils/utils.js';
 import { chatLogger } from '../loggers/logger.js';
 import { randomUUID } from 'crypto';
@@ -715,18 +715,36 @@ class ChatDataOperations {
 
     async fetchChatHistory(accountId: number): Promise<Chat[]> {
         const sql = 'select * from messages where recid = $1 or senderid=$1 order by timestamp desc';
-        let chatHistory: Chat[] = (await this.db.connection.query(sql, [accountId])).rows;
+        let chatHistory: Chat[] = (await this.db.connection.query<Chat>(sql, [accountId])).rows;
         return chatHistory
     }
 
-    fetchChatHistoryV2(accountId: number) {
-        /** 
-         * 
-         * select senderid, recid, max(timestamp)
-         * from messages where senderid=21 or recid=21
-         * group by senderid, recid
-         * if i use the above query, I can then use the timestamp as my identifier to get any information that I need/do any filtrations
-        */
+    fetchLatestChatInEachThread(accountId: number): Promise<QueryResult<ChatPreview>> {
+        const sql = `
+            SELECT
+                id,
+                (select username from accounts where accountid = case when sub.recid = $1 then sub.senderid else sub.recid end) as "nonViewingUsersUsername",
+                senderid,
+                recid,
+                message,
+                timestamp
+            FROM (
+                SELECT
+                    message,
+                    row_number() OVER ( PARTITION BY LEAST(senderid, recid) ORDER BY timestamp DESC) AS row_num,
+                    senderid,
+                    recid,
+                    id,
+                    timestamp
+                FROM
+                    messages
+                WHERE senderid = $1 OR recid = $1
+            ) sub 
+            WHERE row_num = 1
+            ORDER BY timestamp DESC
+        `;
+
+        return this.db.connection.query<ChatPreview>(sql, [accountId]);
     }
 }
 

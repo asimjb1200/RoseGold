@@ -71,51 +71,11 @@ router.get('/latest-messages', async (req:Request, res:Response) => {
         let viewingAccount = Number(req.query.accountId as string);
 
         // check database for any chat they're in
-        let chatHistory: Chat[] = await chatOps.fetchChatHistory(viewingAccount);
+        let latestChatForEachConvo: ChatPreview[] = (await chatOps.fetchLatestChatInEachThread(viewingAccount)).rows;
 
         // make sure that chat data is returned
-        if (chatHistory.length > 0) {
-            let latestChatForEachConvo: Chat[] = [];
-        
-            // the chats are in descending order, so the newest ones are at the front
-            for (let x = 0; x < chatHistory.length; x++) {
-                const currentChat: Chat = chatHistory[x];
-                
-                if (x === 0) {
-                    latestChatForEachConvo.push(chatHistory[x]);
-                } else {
-                    if (checkForMatches(latestChatForEachConvo, currentChat.senderid, currentChat.recid) === false) {
-                        latestChatForEachConvo.push(chatHistory[x]);
-                    }
-                }        
-            }
-    
-            const receivingUsers: number[] = latestChatForEachConvo.map(x => {
-                if (x.recid === viewingAccount) {
-                    return x.senderid;
-                } else {
-                    return x.recid;
-                }
-            });
-    
-            // fetch the usernames for each of these id's
-            const usernamesAndIds: UsernameAndId[] = await userOps.getUsernameAndId(receivingUsers);
-    
-            const latestChatPreviews: ChatPreview[] = latestChatForEachConvo.map(chat => {
-                const userToFind: number = chat.recid === viewingAccount ? chat.senderid : chat.recid;
-                const nonViewingUsersUsername: string = usernamesAndIds.find(x => x.accountid === userToFind)!.username;
-                const chatPreview: ChatPreview = {
-                    id: chat.id,
-                    nonViewingUsersUsername,
-                    recid: chat.recid,
-                    senderid: chat.senderid,
-                    message: chat.message,
-                    timestamp: chat.timestamp
-                }
-                return chatPreview;
-            });
-    
-            const dataForClient:ResponseForClient<ChatPreview[]> = {data: latestChatPreviews, error: []};
+        if (latestChatForEachConvo.length > 0) {
+            const dataForClient:ResponseForClient<ChatPreview[]> = {data: latestChatForEachConvo, error: []};
             if (res.locals.newAccessToken) {
                 dataForClient.newToken = res.locals.newAccessToken;
             }
