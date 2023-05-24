@@ -694,12 +694,6 @@ class ChatDataOperations {
         return chatLog;
     }
 
-    async fetchChatHistory(accountId: number): Promise<Chat[]> {
-        const sql = 'select * from messages where recid = $1 or senderid=$1 order by timestamp desc';
-        let chatHistory: Chat[] = (await this.db.connection.query<Chat>(sql, [accountId])).rows;
-        return chatHistory
-    }
-
     fetchLatestChatInEachThread(accountId: number): Promise<QueryResult<ChatPreview>> {
         const sql = `
             SELECT
