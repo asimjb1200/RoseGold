@@ -8,15 +8,16 @@ import { FilteredItemResult, GroupedItems, ItemDataForClient, ItemNameAndId, Log
 import { buildHashForAccountVerification, groupBy, initUnverifiedAccount, initVerifiedAccount } from "../utils/utils.js";
 import { FileSystemFunctions } from "../utils/fileSystem.js";
 import multer from "multer";
-import { authenticateJWT } from "../security/tokens/tokens.js";
+import { authenticateJWT, generateAPNToken, checkIfTokenExpired } from "../security/tokens/tokens.js";
 import { emailHandler } from "../emails/EmailHandler.js";
 import { generateRandomCode } from "../security/encryption/codeGenerator.js";
 import { hashMe } from "../security/hashing/hashStuff.js";
+import * as APNFunctions from "../APN/APNService.js";
 
 let router = express.Router();
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
-
+let apnJwtToken = '';
 router.post(
     '/register-user',
     upload.single("avatar"),
@@ -166,6 +167,57 @@ router.post(
         }
     }
 );
+
+router.post('/store-device-token', async (req:Request, res:Response) => {
+    //if (!req.user) return res.status(403).json('unauthorized');
+    const {deviceToken} = req.body;
+    console.log(deviceToken);
+    try {
+        await userOps.storeUserDeviceToken(deviceToken, req.user?.accountId as number);
+        return res.sendStatus(200);
+    } catch (error) {
+        if (isPostgresError(error)) {
+            userLogger.error(`tried to store device token ${error.code}: ${error.detail}`);
+        } else {
+            userLogger.error(`tried to store device token: ${error}`);
+        }
+
+        return res.sendStatus(500);
+    }
+});
+
+router.get('/test-apn', async (req:Request, res:Response) => {
+    try {
+        if (!apnJwtToken) {
+            apnJwtToken = await generateAPNToken();
+        } 
+        const resfresh = await checkIfTokenExpired(apnJwtToken);
+        return res.status(200).json({jwtToken: resfresh});
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json('fail');
+    }
+});
+
+router.get('/test-push-noti', async (req:Request, res: Response) => {
+    const deviceToken = 'ad045f9017272d112f550c6a74414d14e61a4883f95e012ba64f3ebcbde529e9';
+    
+    try {
+        //APNMethods.sendToAPNServer(deviceToken, );
+        if (!apnJwtToken) {
+            apnJwtToken = await generateAPNToken();
+        }
+        const payload = APNFunctions.generateAPNPayload("MESSAGE", {recid: 0, senderid: 2, message: 'test run', id: 'testtest', senderUsername: 'arnold', timestamp: 'time', receiverUsername: 'asim'});
+        APNFunctions.sendToAPNServer(deviceToken, apnJwtToken, payload);
+        // const deviceTokensForUser = (await userOps.getDeviceToken()).rows;
+        // const flattenedTokens = deviceTokensForUser.map(x => x.device_token);
+        //console.log({flattenedTokens});
+        return res.sendStatus(200);
+    } catch (error) {
+        console.log(error);
+        return res.sendStatus(500);
+    }
+});
 
 router.post('/report-user', authenticateJWT, async (req:Request, res:Response) => {
     if (!req.user) return res.status(403).json('unauthorized');
@@ -444,9 +496,6 @@ router.post('/change-avatar', [authenticateJWT, upload.single("avatar")], async 
     }
 });
 
-router.post('/email-support', async (req:Request, res:Response) => {
-    
-});
 router.get('/items', authenticateJWT, async (req:Request, res:Response) => {
     const accountId = req.query.accountId;
     if (!accountId) return res.status(500).json('no account id provided');

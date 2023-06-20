@@ -1,8 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
+import path from 'path';
 import jwt from 'jsonwebtoken';
 import { userOps } from '../../database/databaseOperations.js';
 import { userLogger } from '../../loggers/logger.js';
 import { JWTUser } from '../../models/dtos.js';
+import fs from 'fs';
+import { APNJWT } from '../../models/pushNotifications.js';
+import { JWTError } from '../../models/errors.js';
 
 /** use jwt library to create the access and refresh tokens for the client.
  * @param username the username to attach to the token via signing
@@ -13,6 +17,37 @@ export function generateTokens(username: string, accountId: number): {accessToke
     const refreshToken: string = jwt.sign({ username: username, accountId }, process.env.REFRESHTOKENSECRET!, { expiresIn: "7h" });
     // return the access and refresh tokens to the client
     return { "accessToken": accessToken, "refreshToken": refreshToken };
+}
+
+export async function generateAPNToken(): Promise<string> {
+    // Read the contents of the text file synchronously
+    const secretKeyPath = path.resolve('./security/AuthKey_7YMDS4NVGF.p8');
+    const secretKey = await fs.promises.readFile(secretKeyPath, 'utf8');
+    const payload = {iss: "P2B946HD8M"}; // iat key added automatically by jwt next
+    const accessToken: string = jwt.sign(payload, secretKey, { header: {alg: "ES256", kid: process.env.APNKEYID! }, expiresIn: '50m' });
+    return accessToken;
+}
+
+export async function checkIfTokenExpired(currentToken: string): Promise<string> {
+    const apnSecretKeyPath = path.resolve('./security/AuthKey_7YMDS4NVGF.p8');
+    const apnSecretKey = await fs.promises.readFile(apnSecretKeyPath, 'utf8');
+    return new Promise<string>((resolve, reject) => {
+        jwt.verify(currentToken, apnSecretKey, {algorithms: ['ES256']}, async (err: any, decoded: any) => {
+            if (err) {
+                const jwtErr = err as JWTError;
+                if (jwtErr.name === 'TokenExpiredError') {
+                    // issue another token
+                    const newToken = await generateAPNToken();
+                    resolve(newToken);
+                } else {
+                    reject(jwtErr.name);
+                }
+            } else {
+                const apnJwt = decoded as APNJWT;
+                resolve(currentToken);
+            }
+        });
+    });
 }
 
 /** used to authenticate attempted jwt's. if the user can be decoded from the token it will allow them access. 
