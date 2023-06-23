@@ -200,28 +200,28 @@ router.post('/store-device-token', authenticateJWT, async (req:Request, res:Resp
 //     }
 // });
 
-router.post('/test-push-noti', async (req:Request, res: Response) => {
-    const deviceToken = req.body.deviceToken;
+// router.post('/test-push-noti', async (req:Request, res: Response) => {
+//     const deviceToken = req.body.deviceToken;
     
-    try {
-        //let apnJwtToken = await generateAPNToken();
+//     try {
+//         //let apnJwtToken = await generateAPNToken();
         
-        const chatBlock: ChatWithUsername = {recid: 50, senderid: 29, message: 'test run', id: 'c1e249e3-2a84-4c27-9e47-8fc261a57b6b', senderUsername: 'asim97', timestamp: '2023-06-10 00:17:58.581+00', receiverUsername: 'antwuzhere'};
-        // const payload = APNFunctions.generateAPNPayload("MESSAGE", chatBlock);
+//         const chatBlock: ChatWithUsername = {recid: 50, senderid: 29, message: 'test run', id: 'c1e249e3-2a84-4c27-9e47-8fc261a57b6b', senderUsername: 'asim97', timestamp: '2023-06-10 00:17:58.581+00', receiverUsername: 'antwuzhere'};
+//         // const payload = APNFunctions.generateAPNPayload("MESSAGE", chatBlock);
 
-        // add new message to messages table
-        await chatOps.addMsg(chatBlock);
+//         // add new message to messages table
+//         await chatOps.addMsg(chatBlock);
 
-        // send the chat data through our tried and true socket system
-        await socketIO.emitEvent<ChatWithUsername>(chatBlock.recid, ChatEvents.PrivateMessage, chatBlock, {recid: chatBlock.recid, senderid: chatBlock.senderid, message_id: chatBlock.id});
-        //APNFunctions.sendToAPNServer(deviceToken, apnJwtToken, payload);
+//         // send the chat data through our tried and true socket system
+//         await socketIO.emitEvent<ChatWithUsername>(chatBlock.recid, ChatEvents.PrivateMessage, chatBlock, {recid: chatBlock.recid, senderid: chatBlock.senderid, message_id: chatBlock.id});
+//         //APNFunctions.sendToAPNServer(deviceToken, apnJwtToken, payload);
 
-        return res.sendStatus(200);
-    } catch (error) {
-        console.log(error);
-        return res.sendStatus(500);
-    }
-});
+//         return res.sendStatus(200);
+//     } catch (error) {
+//         console.log(error);
+//         return res.sendStatus(500);
+//     }
+// });
 
 router.post('/report-user', authenticateJWT, async (req:Request, res:Response) => {
     if (!req.user) return res.status(403).json('unauthorized');
