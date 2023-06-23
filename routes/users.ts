@@ -199,25 +199,22 @@ router.post('/store-device-token', authenticateJWT, async (req:Request, res:Resp
 //     }
 // });
 
-// router.get('/test-push-noti', async (req:Request, res: Response) => {
-//     const deviceToken = '';
+router.post('/test-push-noti', async (req:Request, res: Response) => {
+    const deviceToken = req.body.deviceToken;
     
-//     try {
-//         //APNMethods.sendToAPNServer(deviceToken, );
-//         if (!apnJwtToken) {
-//             apnJwtToken = await generateAPNToken();
-//         }
-//         const payload = APNFunctions.generateAPNPayload("MESSAGE", {recid: 0, senderid: 2, message: 'test run', id: 'testtest', senderUsername: 'arnold', timestamp: 'time', receiverUsername: 'asim'});
-//         APNFunctions.sendToAPNServer(deviceToken, apnJwtToken, payload);
-//         // const deviceTokensForUser = (await userOps.getDeviceToken()).rows;
-//         // const flattenedTokens = deviceTokensForUser.map(x => x.device_token);
-//         //console.log({flattenedTokens});
-//         return res.sendStatus(200);
-//     } catch (error) {
-//         console.log(error);
-//         return res.sendStatus(500);
-//     }
-// });
+    try {
+        if (!apnJwtToken) {
+            apnJwtToken = await generateAPNToken();
+        }
+        const payload = APNFunctions.generateAPNPayload("MESSAGE", {recid: 50, senderid: 29, message: 'test run', id: 'testtest', senderUsername: 'asim97', timestamp: 'time', receiverUsername: 'antwuzhere'});
+        APNFunctions.sendToAPNServer(deviceToken, apnJwtToken, payload);
+
+        return res.sendStatus(200);
+    } catch (error) {
+        console.log(error);
+        return res.sendStatus(500);
+    }
+});
 
 router.post('/report-user', authenticateJWT, async (req:Request, res:Response) => {
     if (!req.user) return res.status(403).json('unauthorized');
