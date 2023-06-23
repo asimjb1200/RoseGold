@@ -1,6 +1,6 @@
 import pg, {Pool, QueryResult} from 'pg';
 import dotenv from 'dotenv';
-import { Account, Chat, Favorite, Item, PasswordRecorvery, PostgresError, UnreadMessage, UnverifiedAccount } from '../models/databaseObjects.js';
+import { Account, Chat, DeviceToken, Favorite, Item, PasswordRecorvery, PostgresError, UnreadMessage, UnverifiedAccount } from '../models/databaseObjects.js';
 import { generateTokens } from '../security/tokens/tokens.js';
 import { ChatPreview, ChatWithUsername, FilteredItemResult, ItemDataForClient, LoginOperationResponse, UsernameAndId } from '../models/dtos.js';
 import { buildParamList } from '../utils/utils.js';
@@ -34,6 +34,13 @@ class UserDataOperations {
         return this._userInstance || (this._userInstance = new this());
     }
 
+    /** get all of the device tokens that are associated with an accountid
+     */
+    getDeviceToken(accountId: number = 3): Promise<pg.QueryResult<DeviceToken>> {
+        const sql = "SELECT device_token FROM account_device WHERE accountid = $1";
+        return this.db.connection.query<DeviceToken>(sql, [accountId]);
+    }
+
     /** add a user to the main accounts table after they've verified their email address */
     async addNewUser(acct: Account) {
         const sql = `
@@ -59,6 +66,12 @@ class UserDataOperations {
                         );
 
         return (newUser.rowCount ? true : false);
+    }
+
+    /** store the device token for the user's device */
+    storeUserDeviceToken(deviceToken: string, accountId: number) {
+        const sql = "INSERT INTO account_device (accountid, device_token) VALUES ($1, $2) ON CONFLICT (accountid, device_token) DO NOTHING";
+        return this.db.connection.query(sql, [accountId, deviceToken]);
     }
 
     updateUsername(newUsername: string, oldUsername: string) {
@@ -662,6 +675,14 @@ class ChatDataOperations {
     deleteMessagesFromUnreadTable(receivingUserId: number, senderId: number) {
         const sql = "DELETE FROM unread_messages WHERE recid = $1 AND senderid = $2";
         return this.db.connection.query(sql, [receivingUserId, senderId]);
+    }
+
+    /** deletes a single message from the unread messages table. This will be used to keep the unread message count accurate in the event
+     * that a user replies to a message via the notification. I want to only delete the message that they replied to from the unread msgs table
+     */
+    deleteSingleMessageFromUnreadTable(messageId: string) {
+        const sql = "DELETE FROM unread_messages WHERE message_id=$1";
+        return this.db.connection.query(sql, [messageId]);
     }
 
     async deleteMsg(chatBlock: Chat) {
