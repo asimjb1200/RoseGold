@@ -1,10 +1,10 @@
 import express from "express";
 import { Request, Response } from "express";
 import { body, check, checkSchema, validationResult} from "express-validator";
-import { itemOps, userOps } from "../database/databaseOperations.js";
+import { chatOps, itemOps, userOps } from "../database/databaseOperations.js";
 import { userLogger } from "../loggers/logger.js";
-import { Account, isPostgresError, PasswordRecorvery, UnverifiedAccount } from "../models/databaseObjects.js";
-import { FilteredItemResult, GroupedItems, ItemDataForClient, ItemNameAndId, LoginOperationResponse, ResponseForClient, TempUser, UserForClient } from "../models/dtos.js";
+import { Account, ChatEvents, isPostgresError, PasswordRecorvery, UnverifiedAccount } from "../models/databaseObjects.js";
+import { ChatWithUsername, FilteredItemResult, GroupedItems, ItemDataForClient, ItemNameAndId, LoginOperationResponse, ResponseForClient, TempUser, UserForClient } from "../models/dtos.js";
 import { buildHashForAccountVerification, groupBy, initUnverifiedAccount, initVerifiedAccount } from "../utils/utils.js";
 import { FileSystemFunctions } from "../utils/fileSystem.js";
 import multer from "multer";
@@ -13,11 +13,12 @@ import { emailHandler } from "../emails/EmailHandler.js";
 import { generateRandomCode } from "../security/encryption/codeGenerator.js";
 import { hashMe } from "../security/hashing/hashStuff.js";
 import * as APNFunctions from "../APN/APNService.js";
+import { socketIO } from "../bin/www.js";
 
 let router = express.Router();
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
-let apnJwtToken = '';
+//let apnJwtToken = '';
 router.post(
     '/register-user',
     upload.single("avatar"),
@@ -203,11 +204,17 @@ router.post('/test-push-noti', async (req:Request, res: Response) => {
     const deviceToken = req.body.deviceToken;
     
     try {
-        if (!apnJwtToken) {
-            apnJwtToken = await generateAPNToken();
-        }
-        const payload = APNFunctions.generateAPNPayload("MESSAGE", {recid: 50, senderid: 29, message: 'test run', id: 'testtest', senderUsername: 'asim97', timestamp: 'time', receiverUsername: 'antwuzhere'});
-        APNFunctions.sendToAPNServer(deviceToken, apnJwtToken, payload);
+        //let apnJwtToken = await generateAPNToken();
+        
+        const chatBlock: ChatWithUsername = {recid: 50, senderid: 29, message: 'test run', id: 'c1e249e3-2a84-4c27-9e47-8fc261a57b6b', senderUsername: 'asim97', timestamp: '2023-06-10 00:17:58.581+00', receiverUsername: 'antwuzhere'};
+        // const payload = APNFunctions.generateAPNPayload("MESSAGE", chatBlock);
+
+        // add new message to messages table
+        await chatOps.addMsg(chatBlock);
+
+        // send the chat data through our tried and true socket system
+        await socketIO.emitEvent<ChatWithUsername>(chatBlock.recid, ChatEvents.PrivateMessage, chatBlock, {recid: chatBlock.recid, senderid: chatBlock.senderid, message_id: chatBlock.id});
+        //APNFunctions.sendToAPNServer(deviceToken, apnJwtToken, payload);
 
         return res.sendStatus(200);
     } catch (error) {

@@ -52,7 +52,7 @@ export class SocketSetup {
         // TODO: Find a better way to do this
         const senderUsername = await userOps.getUsername(chatData.senderid);
         const receiverUsername = await userOps.getUsername(chatData.recid);
-        
+
         const chatForClient: ChatWithUsername = { id: chatData.id, message: chatData.message, senderUsername, receiverUsername, senderid: chatData.senderid, recid: chatData.recid, timestamp: chatData.timestamp };
 
         // build unread message block just in case the socket isn't connected
@@ -69,6 +69,7 @@ export class SocketSetup {
             let dataForClient: SocketMsgForClient<T> = {data};
             this.allSocketConnections[to].emit(event, dataForClient);
         } else {
+            console.log("no socket found")
             await chatOps.addMessageToUnreadQueue(unreadMessage);
 
             if (isChatObjectWithUsername(data)) {

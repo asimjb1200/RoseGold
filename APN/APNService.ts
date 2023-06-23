@@ -21,7 +21,7 @@ export function sendToAPNServer(deviceToken: string, apnAccessToken: string, pay
     const client = http2.connect(process.env.APNPROD!);
 
     client.on('error', (err) => {
-        //console.error("Error during notifiication: " + err);
+        console.error("Error during notifiication: " + err);
         userLogger.error(`[APN] Tried to send a request through the APN. ID: ${identifier}: ${err}`);
     });
 
@@ -38,7 +38,7 @@ export function sendToAPNServer(deviceToken: string, apnAccessToken: string, pay
     });
     request.write(JSON.stringify(payload));
     request.on('end', () => {
-        //console.log(`\n${data}\n\t done sending noti`);
+        console.log(`\n${data}\n\t done sending noti`);
         client.close();
     });
     request.end();
