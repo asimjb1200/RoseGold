@@ -16,14 +16,14 @@ export class SocketSetup {
     private constructor(server: Server) {
         this.socketIo = new SocketServer(server);
         this.socketIo.on("connection", (socket: Socket) => {
-            console.log("User connected");
+            //console.log("User connected");
 
             this.allSocketConnections[socket.handshake.auth.accountId as number] = socket;
 
             socket.on("disconnect me", (accountId: number) => {
                 if (this.allSocketConnections[accountId]) {
                     delete this.allSocketConnections[accountId];
-                    console.log("socket disconnected");
+                    //console.log("socket disconnected");
                 }
             });
 
@@ -48,8 +48,11 @@ export class SocketSetup {
 
     private async sendPrivateMessage(chatData: Chat) {
         // grab the username of the sender and receiver and attach it to the chat object
+
+        // TODO: Find a better way to do this
         const senderUsername = await userOps.getUsername(chatData.senderid);
         const receiverUsername = await userOps.getUsername(chatData.recid);
+        
         const chatForClient: ChatWithUsername = { id: chatData.id, message: chatData.message, senderUsername, receiverUsername, senderid: chatData.senderid, recid: chatData.recid, timestamp: chatData.timestamp };
 
         // build unread message block just in case the socket isn't connected
@@ -66,7 +69,6 @@ export class SocketSetup {
             let dataForClient: SocketMsgForClient<T> = {data};
             this.allSocketConnections[to].emit(event, dataForClient);
         } else {
-            console.log("couldn't find that socket, so sending to unread messages table");
             await chatOps.addMessageToUnreadQueue(unreadMessage);
 
             if (isChatObjectWithUsername(data)) {
@@ -86,8 +88,6 @@ export class SocketSetup {
             deviceTokensForReceiver.forEach( deviceTokenObject => {
                 APNFunctions.sendToAPNServer(deviceTokenObject.device_token, this.apnJWT, apnPayload);
             });
-        } else {
-            console.log("no device token found");
         }
     }
 }

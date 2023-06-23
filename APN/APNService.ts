@@ -2,7 +2,6 @@ import http2 from 'http2';
 import { AlertDictionary, PushNotificationCategory, RemoteNotification } from '../models/pushNotifications.js';
 import { randomUUID } from 'crypto';
 import { userLogger } from '../loggers/logger.js';
-import { UnreadMessage } from '../models/databaseObjects.js';
 import { ChatWithUsername } from '../models/dtos.js';
 
 /** use this method to send the notifcations to the APN for delivery to the user
@@ -19,7 +18,7 @@ export function sendToAPNServer(deviceToken: string, apnAccessToken: string, pay
         ':scheme': 'https'
     };
 
-    const client = http2.connect(process.env.APNDEV!);
+    const client = http2.connect(process.env.APNPROD!);
 
     client.on('error', (err) => {
         //console.error("Error during notifiication: " + err);
