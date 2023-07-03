@@ -1,19 +1,18 @@
 import express from "express";
 import { Request, Response } from "express";
-import { body, check, checkSchema, validationResult} from "express-validator";
-import { chatOps, itemOps, userOps } from "../database/databaseOperations.js";
+import { body, check, validationResult} from "express-validator";
+import { itemOps, userOps } from "../database/databaseOperations.js";
 import { userLogger } from "../loggers/logger.js";
-import { Account, ChatEvents, isPostgresError, PasswordRecorvery, UnverifiedAccount } from "../models/databaseObjects.js";
-import { ChatWithUsername, FilteredItemResult, GroupedItems, ItemDataForClient, ItemNameAndId, LoginOperationResponse, ResponseForClient, TempUser, UserForClient } from "../models/dtos.js";
+import { Account, PasswordRecorvery, UnverifiedAccount } from "../models/databaseObjects.js";
+import { FilteredItemResult, GroupedItems, ItemDataForClient, ItemNameAndId, LoginOperationResponse, ResponseForClient, TempUser, UserForClient } from "../models/dtos.js";
 import { buildHashForAccountVerification, groupBy, initUnverifiedAccount, initVerifiedAccount } from "../utils/utils.js";
 import { FileSystemFunctions } from "../utils/fileSystem.js";
 import multer from "multer";
-import { authenticateJWT, generateAPNToken, checkIfTokenExpired } from "../security/tokens/tokens.js";
+import { authenticateJWT } from "../security/tokens/tokens.js";
 import { emailHandler } from "../emails/EmailHandler.js";
 import { generateRandomCode } from "../security/encryption/codeGenerator.js";
 import { hashMe } from "../security/hashing/hashStuff.js";
-import * as APNFunctions from "../APN/APNService.js";
-import { socketIO } from "../bin/www.js";
+import { isPostgresError } from "../utils/typeAssertions.js";
 
 let router = express.Router();
 const storage = multer.memoryStorage();
@@ -169,23 +168,23 @@ router.post(
     }
 );
 
-router.post('/store-device-token', authenticateJWT, async (req:Request, res:Response) => {
-    if (!req.user) return res.status(403).json('unauthorized');
-    const {deviceToken} = req.body;
+// router.post('/store-device-token', authenticateJWT, async (req:Request, res:Response) => {
+//     if (!req.user) return res.status(403).json('unauthorized');
+//     const {deviceToken} = req.body;
 
-    try {
-        await userOps.storeUserDeviceToken(deviceToken, req.user.accountId as number);
-        return res.sendStatus(200);
-    } catch (error) {
-        if (isPostgresError(error)) {
-            userLogger.error(`tried to store device token ${error.code}: ${error.detail}`);
-        } else {
-            userLogger.error(`tried to store device token: ${error}`);
-        }
+//     try {
+//         await userOps.storeUserDeviceToken(deviceToken, req.user.accountId as number);
+//         return res.sendStatus(200);
+//     } catch (error) {
+//         if (isPostgresError(error)) {
+//             userLogger.error(`tried to store device token ${error.code}: ${error.detail}`);
+//         } else {
+//             userLogger.error(`tried to store device token: ${error}`);
+//         }
 
-        return res.sendStatus(500);
-    }
-});
+//         return res.sendStatus(500);
+//     }
+// });
 
 // router.get('/test-apn', async (req:Request, res:Response) => {
 //     try {

@@ -1,4 +1,6 @@
+import { JsonWebTokenError } from "jsonwebtoken";
 import { ChatWithUsername } from "./dtos";
+import { JWTError } from "./errors";
 
 export type Item = {
     id?: number;
@@ -121,11 +123,3 @@ export type AccountDevice = {
 }
 
 export type DeviceToken = Pick<AccountDevice, "device_token">;
-
-export function isPostgresError(err: any): err is PostgresError {
-    return (err as PostgresError).detail !== undefined;
-}
-
-export function isChatObjectWithUsername(obj: any): obj is ChatWithUsername {
-    return (obj as ChatWithUsername).senderUsername !== undefined;
-}

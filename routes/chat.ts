@@ -1,12 +1,10 @@
 import express, { Request, Response } from 'express';
 import { chatOps, userOps } from '../database/databaseOperations.js';
 import { chatLogger } from '../loggers/logger.js';
-import { Chat, ChatEvents, UnreadMessage, isPostgresError } from '../models/databaseObjects.js';
-import { GroupedChats, ChatWithUsername, ResponseForClient, UsernameAndId, ChatPreview } from '../models/dtos.js';
-import { hashMe } from '../security/hashing/hashStuff.js';
-import { SocketSetup } from '../SocketSetup/Socket.js';
-import { socketIO } from '../bin/www.js';
-import { body, validationResult } from 'express-validator';
+import { UnreadMessage } from '../models/databaseObjects.js';
+import { ChatWithUsername, ResponseForClient, ChatPreview } from '../models/dtos.js';
+
+import { isPostgresError } from '../utils/typeAssertions.js';
 
 let router = express.Router();
 
@@ -108,7 +106,7 @@ router.get('/get-unread-messages', async (req:Request, res: Response) => {
     }
 });
 
-router.delete('/delete-from-unread',async (req:Request, res:Response) => {
+router.delete('/delete-from-unread', async (req:Request, res:Response) => {
     if (!req.user) return res.status(403).json('unauthorized');
 
     try {
@@ -134,44 +132,44 @@ router.delete('/delete-from-unread',async (req:Request, res:Response) => {
     }
 });
 
-router.post(
-    '/reply-through-notification', 
-    body(['id', 'senderid', 'recid', 'message', 'timestamp', 'senderUsername', 'receiverUsername'], 'invalid object').exists(),
-    async (req: Request, res:Response) => {
-        if (!req.user) return res.status(403).json('unauthorized');
-        const validationErrors = validationResult(req);
-        if (!validationErrors.isEmpty()) {
-            return res.status(422).json({ errors: validationErrors.array() });
-        }
-        const chatData: ChatWithUsername = req.body;
+// router.post(
+//     '/reply-through-notification', 
+//     body(['id', 'senderid', 'recid', 'message', 'timestamp', 'senderUsername', 'receiverUsername'], 'invalid object').exists(),
+//     async (req: Request, res:Response) => {
+//         if (!req.user) return res.status(403).json('unauthorized');
+//         const validationErrors = validationResult(req);
+//         if (!validationErrors.isEmpty()) {
+//             return res.status(422).json({ errors: validationErrors.array() });
+//         }
+//         const chatData: ChatWithUsername = req.body;
 
-        try {
-            const chatBlock: Chat = {
-                id: chatData.id, 
-                recid: chatData.recid, 
-                senderid: chatData.senderid, 
-                timestamp: chatData.timestamp, 
-                message: chatData.message
-            };
+//         try {
+//             const chatBlock: Chat = {
+//                 id: chatData.id, 
+//                 recid: chatData.recid, 
+//                 senderid: chatData.senderid, 
+//                 timestamp: chatData.timestamp, 
+//                 message: chatData.message
+//             };
 
-            // add new message to messages table
-            await chatOps.addMsg(chatBlock);
+//             // add new message to messages table
+//             await chatOps.addMsg(chatBlock);
 
-            // the recid is used for the senderid in this case because the user that made this request is the one who viewed the message.
-            // therefore, any messages sent from the person they are replying to need to be deleted from the unread table
-            await chatOps.deleteMessagesFromUnreadTable(req.user.accountId, chatData.recid);
+//             // the recid is used for the senderid in this case because the user that made this request is the one who viewed the message.
+//             // therefore, any messages sent from the person they are replying to need to be deleted from the unread table
+//             await chatOps.deleteMessagesFromUnreadTable(req.user.accountId, chatData.recid);
 
-            // send the chat data through our tried and true socket system
-            await socketIO.emitEvent<ChatWithUsername>(chatData.recid, ChatEvents.PrivateMessage, chatData, {recid: chatData.recid, senderid: chatData.senderid, message_id: chatData.id});
-            return res.sendStatus(200);   
-        } catch (error) {
-            if (isPostgresError(error)) {
-                chatLogger.error(`tried to send notification response ${error.code}: ${error.detail}`);
-            } else {
-                chatLogger.error(`tried to send notification response: ${error}`);
-            }
-            return res.sendStatus(500);
-        }
-});
+//             // send the chat data through our tried and true socket system
+//             await socketIO.emitEvent<ChatWithUsername>(chatData.recid, ChatEvents.PrivateMessage, chatData, {recid: chatData.recid, senderid: chatData.senderid, message_id: chatData.id});
+//             return res.sendStatus(200);   
+//         } catch (error) {
+//             if (isPostgresError(error)) {
+//                 chatLogger.error(`tried to send notification response ${error.code}: ${error.detail}`);
+//             } else {
+//                 chatLogger.error(`tried to send notification response: ${error}`);
+//             }
+//             return res.sendStatus(500);
+//         }
+// });
 
 export default router;

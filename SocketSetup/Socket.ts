@@ -2,28 +2,27 @@ import { Server } from "http";
 import { Socket, Server as SocketServer } from "socket.io";
 import { chatOps, userOps } from "../database/databaseOperations.js";
 import { chatLogger } from "../loggers/logger.js";
-import { Chat, ChatEvents, DeviceToken, UnreadMessage, isChatObjectWithUsername, isPostgresError } from "../models/databaseObjects.js";
+import { Chat, ChatEvents, DeviceToken, UnreadMessage } from "../models/databaseObjects.js";
 import { ChatWithUsername, SocketMsgForClient } from "../models/dtos";
 import * as TokenFunctions from "../security/tokens/tokens.js";
 import * as APNFunctions from "../APN/APNService.js";
+import { isPostgresError, isChatObjectWithUsername } from "../utils/typeAssertions.js";
 
 export class SocketSetup {
     socketIo: SocketServer;
     private static _instance: SocketSetup;
-    private allSocketConnections: {[id: number]: Socket} = {};
+    private allSocketConnections: {[id: string]: Socket} = {};
     private apnJWT: string = '';
 
     private constructor(server: Server) {
         this.socketIo = new SocketServer(server);
         this.socketIo.on("connection", (socket: Socket) => {
-            //console.log("User connected");
 
-            this.allSocketConnections[socket.handshake.auth.accountId as number] = socket;
+            this.allSocketConnections[socket.handshake.auth.accountId] = socket;
 
             socket.on("disconnect me", (accountId: number) => {
                 if (this.allSocketConnections[accountId]) {
                     delete this.allSocketConnections[accountId];
-                    //console.log("socket disconnected");
                 }
             });
 
@@ -72,23 +71,23 @@ export class SocketSetup {
             console.log("no socket found")
             await chatOps.addMessageToUnreadQueue(unreadMessage);
 
-            if (isChatObjectWithUsername(data)) {
-                await this.notifyUserViaAPN(data);
-            }
+            // if (isChatObjectWithUsername(data)) {
+            //     await this.notifyUserViaAPN(data);
+            // }
         }
     }
 
-    private async notifyUserViaAPN(unreadMessage: ChatWithUsername) {
-        // check if there's a device token for the receiving user
-        const deviceTokensForReceiver: DeviceToken[] = (await userOps.getDeviceToken(unreadMessage.recid)).rows;
-        if (deviceTokensForReceiver.length) {
-            // send them a notification about the new message
-            this.apnJWT = this.apnJWT || await TokenFunctions.generateAPNToken();
-            this.apnJWT = await TokenFunctions.checkIfTokenExpired(this.apnJWT);
-            const apnPayload = APNFunctions.generateAPNPayload("MESSAGE", unreadMessage);
-            deviceTokensForReceiver.forEach( deviceTokenObject => {
-                APNFunctions.sendToAPNServer(deviceTokenObject.device_token, this.apnJWT, apnPayload);
-            });
-        }
-    }
+    // private async notifyUserViaAPN(unreadMessage: ChatWithUsername) {
+    //     // check if there's a device token for the receiving user
+    //     const deviceTokensForReceiver: DeviceToken[] = (await userOps.getDeviceToken(unreadMessage.recid)).rows;
+    //     if (deviceTokensForReceiver.length) {
+    //         // send them a notification about the new message
+    //         this.apnJWT = this.apnJWT || await TokenFunctions.generateAPNToken();
+    //         this.apnJWT = await TokenFunctions.checkIfTokenExpired(this.apnJWT);
+    //         const apnPayload = APNFunctions.generateAPNPayload("MESSAGE", unreadMessage);
+    //         deviceTokensForReceiver.forEach( deviceTokenObject => {
+    //             APNFunctions.sendToAPNServer(deviceTokenObject.device_token, this.apnJWT, apnPayload);
+    //         });
+    //     }
+    // }
 }
