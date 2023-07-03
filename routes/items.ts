@@ -3,11 +3,12 @@ import multer from 'multer';
 import { check, validationResult } from 'express-validator';
 import { itemOps } from '../database/databaseOperations.js';
 import { itemLogger } from '../loggers/logger.js';
-import { isPostgresError, Item } from '../models/databaseObjects.js';
+import { Item } from '../models/databaseObjects.js';
 import { FilteredItemResult, FilterQueryParams, GroupedItems, ItemDataForClient, ItemFromClient, ResponseForClient } from '../models/dtos.js';
 import { FileSystemFunctions } from '../utils/fileSystem.js';
 import { groupBy } from '../utils/utils.js';
 import validator from 'validator';
+import { isPostgresError } from '../utils/typeAssertions.js';
 
 let router = express.Router();
 const storage = multer.memoryStorage();
