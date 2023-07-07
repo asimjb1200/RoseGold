@@ -10,7 +10,7 @@ class EmailHandler {
         secure: false,
         auth: {
             user: process.env.GMAILUSERNAME!,
-            pass: process.env.GMAILPASSWORD!
+            pass: process.env.GMAILAPPPASSWORD!
         }
     });
 
