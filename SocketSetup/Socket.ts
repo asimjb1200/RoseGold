@@ -63,13 +63,18 @@ export class SocketSetup {
         return this._instance || (this._instance = new this(server));
     }
 
-    public async emitEvent<T>(to: number, event: ChatEvents, data: T, unreadMessage: UnreadMessage) {
+    private async emitEvent<T>(to: number, event: ChatEvents, data: T, unreadMessage: UnreadMessage) {
         if (this.allSocketConnections[to]) {
             let dataForClient: SocketMsgForClient<T> = {data};
             this.allSocketConnections[to].emit(event, dataForClient);
         } else {
             console.log("no socket found")
-            await chatOps.addMessageToUnreadQueue(unreadMessage);
+            try {
+                await chatOps.addMessageToUnreadQueue(unreadMessage);
+            } catch (error) {
+                console.log(error);
+            }
+            
 
             // if (isChatObjectWithUsername(data)) {
             //     await this.notifyUserViaAPN(data);

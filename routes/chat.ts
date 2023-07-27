@@ -88,7 +88,7 @@ router.get('/get-unread-messages', async (req:Request, res: Response) => {
     try {
         // get all of a user's unread messages
         const unreadMessages:UnreadMessage[] = (await chatOps.getUnreadMessagesForUser(req.user.accountId)).rows;
-
+        console.log(unreadMessages);
         const responseForClient: ResponseForClient<UnreadMessage[]> = {data: unreadMessages, error: []};
 
         if (res.locals.newAccessToken) {
