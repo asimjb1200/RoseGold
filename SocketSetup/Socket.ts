@@ -68,14 +68,12 @@ export class SocketSetup {
             let dataForClient: SocketMsgForClient<T> = {data};
             this.allSocketConnections[to].emit(event, dataForClient);
         } else {
-            console.log("no socket found")
+            //console.log("no socket found")
             try {
                 await chatOps.addMessageToUnreadQueue(unreadMessage);
             } catch (error) {
-                console.log(error);
+                chatLogger.error(`[Socket] error while trying to add message to unread queue: ${error}`);
             }
-            
-
             // if (isChatObjectWithUsername(data)) {
             //     await this.notifyUserViaAPN(data);
             // }
