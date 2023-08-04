@@ -7,6 +7,9 @@ import { JWTUser } from '../../models/dtos.js';
 import fs from 'fs';
 import { APNJWT } from '../../models/pushNotifications.js';
 import { JWTError } from '../../models/errors.js';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 /** use jwt library to create the access and refresh tokens for the client.
  * @param username the username to attach to the token via signing
@@ -118,4 +121,23 @@ export async function refreshOldToken(username: string, accountId:number): Promi
     } catch (dbError) {
         return 403 // this could arise if the token is no longer valid, in the case the user needs to login again
     }
+}
+
+export function checkMasterToken(req: Request, res: Response, next: NextFunction) {
+    if (!req.headers.authorization) {
+        // if no auth header, show an unauthorized code
+        userLogger.error("Unauthorized access to metrics attempted.");
+        res.sendStatus(401);
+    }
+
+    // grab the authorization header
+    const authHeader: string = req.headers.authorization ?? '';
+
+    // if it exists, split it on the space to get the tokem
+    const token = authHeader.split(' ')[1];
+
+    if (token !== process.env.MASTERAUTHTOKEN) {
+        res.sendStatus(403);
+    }
+    next();
 }

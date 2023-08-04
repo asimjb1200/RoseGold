@@ -4,10 +4,12 @@ import cookieParser from 'cookie-parser';
 import userRouter from './routes/users.js';
 import itemRouter from './routes/items.js';
 import chatRouter from './routes/chat.js';
+import emailRouter from './routes/emails.js';
+import appDiagnostics from './routes/diagnostics.js';
 import { fileURLToPath } from 'url';
 import compression from 'compression';
 import { dirname } from 'path';
-import { authenticateJWT } from './security/tokens/tokens.js';
+import { authenticateJWT, checkMasterToken } from './security/tokens/tokens.js';
 const __filename = fileURLToPath(import.meta.url);
 export const __dirname = dirname(__filename);
 const pathToImagesFolder = path.join(__dirname, '/images');
@@ -30,4 +32,7 @@ app.use('/api/images', express.static(pathToImagesFolder)); // serve images from
 app.use('/api/users', userRouter);
 app.use('/api/item-handler', authenticateJWT, itemRouter);
 app.use('/api/chat-handler', authenticateJWT, chatRouter);
+//app.use('/api/email-handler', emailRouter);
+app.use('/api/diagnostics', checkMasterToken, appDiagnostics);
+
 export default app;
